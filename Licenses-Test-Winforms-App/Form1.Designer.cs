@@ -1,16 +1,9 @@
-﻿namespace Perpetual_Test_App_NET8
+﻿namespace Licenses_Test_Winforms_App
 {
     partial class Form1
     {
-        /// <summary>
-        ///  Required designer variable.
-        /// </summary>
         private System.ComponentModel.IContainer components = null;
 
-        /// <summary>
-        ///  Clean up any resources being used.
-        /// </summary>
-        /// <param name="disposing">true if managed resources should be disposed; otherwise, false.</param>
         protected override void Dispose(bool disposing)
         {
             if (disposing && (components != null))
@@ -22,10 +15,6 @@
 
         #region Windows Form Designer generated code
 
-        /// <summary>
-        ///  Required method for Designer support - do not modify
-        ///  the contents of this method with the code editor.
-        /// </summary>
         private void InitializeComponent()
         {
             lblTitle = new Label();
@@ -42,13 +31,13 @@
             lblLicenseKey = new Label();
             txtUserName = new TextBox();
             lblUserName = new Label();
+            chkForceOnline = new CheckBox();
             pnlStatus = new Panel();
             lblValidationTime = new Label();
             lblStatus = new Label();
             lblStatusTitle = new Label();
             btnValidate = new Button();
             btnClear = new Button();
-            btnPagesEdit = new Button();
             lstFeatures = new ListBox();
             lblFeatures = new Label();
             grpLicenseFile.SuspendLayout();
@@ -62,8 +51,8 @@
             lblTitle.ForeColor = Color.FromArgb(31, 41, 55);
             lblTitle.Location = new Point(20, 15);
             lblTitle.Name = "lblTitle";
-            lblTitle.Size = new Size(320, 30);
-            lblTitle.Text = "Perpetual License Validator";
+            lblTitle.Size = new Size(280, 30);
+            lblTitle.Text = "LicenPro License Validator";
 
             grpLicenseFile.Controls.Add(btnBrowseLicense);
             grpLicenseFile.Controls.Add(txtLicenseFile);
@@ -137,10 +126,11 @@
             grpCredentials.Controls.Add(lblLicenseKey);
             grpCredentials.Controls.Add(txtUserName);
             grpCredentials.Controls.Add(lblUserName);
+            grpCredentials.Controls.Add(chkForceOnline);
             grpCredentials.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
             grpCredentials.Location = new Point(20, 265);
             grpCredentials.Name = "grpCredentials";
-            grpCredentials.Size = new Size(460, 90);
+            grpCredentials.Size = new Size(460, 100);
             grpCredentials.TabIndex = 2;
             grpCredentials.TabStop = false;
             grpCredentials.Text = "License Credentials";
@@ -167,18 +157,27 @@
             lblLicenseKey.Text = "License Key:";
 
             txtLicenseKey.Font = new Font("Segoe UI", 9F);
-            txtLicenseKey.Location = new Point(230, 45);
+            txtLicenseKey.Location = new Point(90, 68);
             txtLicenseKey.Name = "txtLicenseKey";
             txtLicenseKey.PlaceholderText = "XXXX-XXXX-XXXX-XXXX";
-            txtLicenseKey.Size = new Size(215, 23);
+            txtLicenseKey.Size = new Size(245, 23);
             txtLicenseKey.TabIndex = 5;
+
+            chkForceOnline.AutoSize = true;
+            chkForceOnline.Font = new Font("Segoe UI", 9F);
+            chkForceOnline.Location = new Point(350, 45);
+            chkForceOnline.Name = "chkForceOnline";
+            chkForceOnline.Size = new Size(100, 19);
+            chkForceOnline.TabIndex = 6;
+            chkForceOnline.Text = "Force Online";
+            chkForceOnline.UseVisualStyleBackColor = true;
 
             pnlStatus.BackColor = Color.FromArgb(243, 244, 246);
             pnlStatus.BorderStyle = BorderStyle.FixedSingle;
             pnlStatus.Controls.Add(lblValidationTime);
             pnlStatus.Controls.Add(lblStatus);
             pnlStatus.Controls.Add(lblStatusTitle);
-            pnlStatus.Location = new Point(20, 365);
+            pnlStatus.Location = new Point(20, 375);
             pnlStatus.Name = "pnlStatus";
             pnlStatus.Size = new Size(460, 70);
             pnlStatus.TabIndex = 3;
@@ -211,10 +210,10 @@
             btnValidate.FlatStyle = FlatStyle.Flat;
             btnValidate.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
             btnValidate.ForeColor = Color.White;
-            btnValidate.Location = new Point(20, 445);
+            btnValidate.Location = new Point(20, 455);
             btnValidate.Name = "btnValidate";
             btnValidate.Size = new Size(220, 40);
-            btnValidate.TabIndex = 6;
+            btnValidate.TabIndex = 4;
             btnValidate.Text = "✓ Validate License";
             btnValidate.UseVisualStyleBackColor = false;
             btnValidate.Click += btnValidate_Click;
@@ -224,30 +223,17 @@
             btnClear.FlatStyle = FlatStyle.Flat;
             btnClear.Font = new Font("Segoe UI", 10F);
             btnClear.ForeColor = Color.White;
-            btnClear.Location = new Point(260, 445);
+            btnClear.Location = new Point(260, 455);
             btnClear.Name = "btnClear";
             btnClear.Size = new Size(220, 40);
-            btnClear.TabIndex = 7;
+            btnClear.TabIndex = 5;
             btnClear.Text = "Clear All";
             btnClear.UseVisualStyleBackColor = false;
             btnClear.Click += btnClear_Click;
 
-            btnPagesEdit.BackColor = Color.FromArgb(59, 130, 246);
-            btnPagesEdit.FlatAppearance.BorderSize = 0;
-            btnPagesEdit.FlatStyle = FlatStyle.Flat;
-            btnPagesEdit.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
-            btnPagesEdit.ForeColor = Color.White;
-            btnPagesEdit.Location = new Point(20, 495);
-            btnPagesEdit.Name = "btnPagesEdit";
-            btnPagesEdit.Size = new Size(460, 40);
-            btnPagesEdit.TabIndex = 8;
-            btnPagesEdit.Text = "Open Pages Editor (Pages Edit)";
-            btnPagesEdit.UseVisualStyleBackColor = false;
-            btnPagesEdit.Click += btnPagesEdit_Click;
-
             lblFeatures.AutoSize = true;
             lblFeatures.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-            lblFeatures.Location = new Point(20, 545);
+            lblFeatures.Location = new Point(20, 510);
             lblFeatures.Name = "lblFeatures";
             lblFeatures.Size = new Size(100, 15);
             lblFeatures.Text = "Assigned Features:";
@@ -255,15 +241,15 @@
             lstFeatures.Font = new Font("Segoe UI", 9F);
             lstFeatures.FormattingEnabled = true;
             lstFeatures.HorizontalScrollbar = true;
-            lstFeatures.Location = new Point(20, 565);
+            lstFeatures.Location = new Point(20, 530);
             lstFeatures.Name = "lstFeatures";
             lstFeatures.Size = new Size(460, 95);
-            lstFeatures.TabIndex = 9;
+            lstFeatures.TabIndex = 6;
 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             BackColor = Color.White;
-            ClientSize = new Size(500, 670);
+            ClientSize = new Size(500, 640);
             Controls.Add(lblTitle);
             Controls.Add(grpLicenseFile);
             Controls.Add(grpPublicKey);
@@ -271,14 +257,13 @@
             Controls.Add(pnlStatus);
             Controls.Add(btnValidate);
             Controls.Add(btnClear);
-            Controls.Add(btnPagesEdit);
             Controls.Add(lblFeatures);
             Controls.Add(lstFeatures);
             FormBorderStyle = FormBorderStyle.FixedSingle;
             MaximizeBox = false;
             Name = "Form1";
             StartPosition = FormStartPosition.CenterScreen;
-            Text = "LicenPro - Perpetual License Test";
+            Text = "LicenPro - License Validator";
             grpLicenseFile.ResumeLayout(false);
             grpLicenseFile.PerformLayout();
             grpPublicKey.ResumeLayout(false);
@@ -307,13 +292,13 @@
         private Label lblLicenseKey;
         private TextBox txtUserName;
         private Label lblUserName;
+        private CheckBox chkForceOnline;
         private Panel pnlStatus;
         private Label lblValidationTime;
         private Label lblStatus;
         private Label lblStatusTitle;
         private Button btnValidate;
         private Button btnClear;
-        private Button btnPagesEdit;
         private Label lblFeatures;
         private ListBox lstFeatures;
     }

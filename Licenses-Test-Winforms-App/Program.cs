@@ -1,4 +1,6 @@
-namespace Perpetual_Test_App_NET8
+using System.Windows.Forms;
+
+namespace Licenses_Test_Winforms_App
 {
     internal static class Program
     {
@@ -8,8 +10,6 @@ namespace Perpetual_Test_App_NET8
         [STAThread]
         static void Main()
         {
-            // To customize application configuration such as set high DPI settings or default font,
-            // see https://aka.ms/applicationconfiguration.
             ApplicationConfiguration.Initialize();
             Application.Run(new Form1());
         }
