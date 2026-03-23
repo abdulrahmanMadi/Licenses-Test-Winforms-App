@@ -89,8 +89,7 @@ namespace Licenses_Test_Winforms_App
                 UserName = txtUserName.Text,
                 LicenseKey = txtLicenseKey.Text,
                 ExpectedLicenseType = null, // Auto-detect
-                AllowNonBinFiles = true,
-                ForceOnlineValidation = chkForceOnline.Checked
+                AllowNonBinFiles = true
             });
 
             _licenseClient.SessionDisconnected += (_, msg) =>
@@ -128,6 +127,7 @@ namespace Licenses_Test_Winforms_App
                 var icon = result.Status switch
                 {
                     LicenseValidationStatus.DeviceBlocked => MessageBoxIcon.Stop,
+                    LicenseValidationStatus.Revoked => MessageBoxIcon.Stop,
                     LicenseValidationStatus.Expired => MessageBoxIcon.Warning,
                     _ => MessageBoxIcon.Warning
                 };
@@ -137,6 +137,7 @@ namespace Licenses_Test_Winforms_App
                 var (statusText, statusColor, panelColor) = result.Status switch
                 {
                     LicenseValidationStatus.DeviceBlocked => ("DEVICE BLOCKED", Color.DarkRed, Color.FromArgb(254, 202, 202)),
+                    LicenseValidationStatus.Revoked => ("REVOKED", Color.DarkRed, Color.FromArgb(254, 202, 202)),
                     LicenseValidationStatus.Expired => ("EXPIRED", Color.OrangeRed, Color.FromArgb(254, 226, 226)),
                     LicenseValidationStatus.CredentialsMismatch => ("Credentials mismatch", Color.Orange, Color.FromArgb(254, 243, 199)),
                     LicenseValidationStatus.WrongLicenseType => ("Wrong license type", Color.Orange, Color.FromArgb(254, 243, 199)),
@@ -163,7 +164,6 @@ namespace Licenses_Test_Winforms_App
             txtPublicKey.Text = "";
             txtUserName.Text = "";
             txtLicenseKey.Text = "";
-            chkForceOnline.Checked = false;
             lblStatus.Text = "Not Validated";
             lblStatus.ForeColor = Color.Gray;
             lblValidationTime.Text = "";

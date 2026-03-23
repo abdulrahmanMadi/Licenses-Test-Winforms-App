@@ -31,7 +31,6 @@
             lblLicenseKey = new Label();
             txtUserName = new TextBox();
             lblUserName = new Label();
-            chkForceOnline = new CheckBox();
             pnlStatus = new Panel();
             lblValidationTime = new Label();
             lblStatus = new Label();
@@ -126,11 +125,10 @@
             grpCredentials.Controls.Add(lblLicenseKey);
             grpCredentials.Controls.Add(txtUserName);
             grpCredentials.Controls.Add(lblUserName);
-            grpCredentials.Controls.Add(chkForceOnline);
             grpCredentials.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
             grpCredentials.Location = new Point(20, 265);
             grpCredentials.Name = "grpCredentials";
-            grpCredentials.Size = new Size(460, 100);
+            grpCredentials.Size = new Size(460, 85);
             grpCredentials.TabIndex = 2;
             grpCredentials.TabStop = false;
             grpCredentials.Text = "License Credentials";
@@ -157,27 +155,18 @@
             lblLicenseKey.Text = "License Key:";
 
             txtLicenseKey.Font = new Font("Segoe UI", 9F);
-            txtLicenseKey.Location = new Point(90, 68);
+            txtLicenseKey.Location = new Point(230, 45);
             txtLicenseKey.Name = "txtLicenseKey";
             txtLicenseKey.PlaceholderText = "XXXX-XXXX-XXXX-XXXX";
-            txtLicenseKey.Size = new Size(245, 23);
+            txtLicenseKey.Size = new Size(215, 23);
             txtLicenseKey.TabIndex = 5;
-
-            chkForceOnline.AutoSize = true;
-            chkForceOnline.Font = new Font("Segoe UI", 9F);
-            chkForceOnline.Location = new Point(350, 45);
-            chkForceOnline.Name = "chkForceOnline";
-            chkForceOnline.Size = new Size(100, 19);
-            chkForceOnline.TabIndex = 6;
-            chkForceOnline.Text = "Force Online";
-            chkForceOnline.UseVisualStyleBackColor = true;
 
             pnlStatus.BackColor = Color.FromArgb(243, 244, 246);
             pnlStatus.BorderStyle = BorderStyle.FixedSingle;
             pnlStatus.Controls.Add(lblValidationTime);
             pnlStatus.Controls.Add(lblStatus);
             pnlStatus.Controls.Add(lblStatusTitle);
-            pnlStatus.Location = new Point(20, 375);
+            pnlStatus.Location = new Point(20, 360);
             pnlStatus.Name = "pnlStatus";
             pnlStatus.Size = new Size(460, 70);
             pnlStatus.TabIndex = 3;
@@ -210,7 +199,7 @@
             btnValidate.FlatStyle = FlatStyle.Flat;
             btnValidate.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
             btnValidate.ForeColor = Color.White;
-            btnValidate.Location = new Point(20, 455);
+            btnValidate.Location = new Point(20, 440);
             btnValidate.Name = "btnValidate";
             btnValidate.Size = new Size(220, 40);
             btnValidate.TabIndex = 4;
@@ -223,7 +212,7 @@
             btnClear.FlatStyle = FlatStyle.Flat;
             btnClear.Font = new Font("Segoe UI", 10F);
             btnClear.ForeColor = Color.White;
-            btnClear.Location = new Point(260, 455);
+            btnClear.Location = new Point(260, 440);
             btnClear.Name = "btnClear";
             btnClear.Size = new Size(220, 40);
             btnClear.TabIndex = 5;
@@ -233,7 +222,7 @@
 
             lblFeatures.AutoSize = true;
             lblFeatures.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-            lblFeatures.Location = new Point(20, 510);
+            lblFeatures.Location = new Point(20, 495);
             lblFeatures.Name = "lblFeatures";
             lblFeatures.Size = new Size(100, 15);
             lblFeatures.Text = "Assigned Features:";
@@ -241,7 +230,7 @@
             lstFeatures.Font = new Font("Segoe UI", 9F);
             lstFeatures.FormattingEnabled = true;
             lstFeatures.HorizontalScrollbar = true;
-            lstFeatures.Location = new Point(20, 530);
+            lstFeatures.Location = new Point(20, 515);
             lstFeatures.Name = "lstFeatures";
             lstFeatures.Size = new Size(460, 95);
             lstFeatures.TabIndex = 6;
@@ -249,7 +238,7 @@
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             BackColor = Color.White;
-            ClientSize = new Size(500, 640);
+            ClientSize = new Size(500, 625);
             Controls.Add(lblTitle);
             Controls.Add(grpLicenseFile);
             Controls.Add(grpPublicKey);
@@ -292,7 +281,6 @@
         private Label lblLicenseKey;
         private TextBox txtUserName;
         private Label lblUserName;
-        private CheckBox chkForceOnline;
         private Panel pnlStatus;
         private Label lblValidationTime;
         private Label lblStatus;

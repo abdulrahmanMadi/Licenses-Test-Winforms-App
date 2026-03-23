@@ -10,6 +10,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="LicenPro.SDK" Version="1.1.5" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\..\LicenPro-2024\SDK\LicenPro.SDK.lib\LicenPro.SDK.csproj" />
   </ItemGroup>
 
