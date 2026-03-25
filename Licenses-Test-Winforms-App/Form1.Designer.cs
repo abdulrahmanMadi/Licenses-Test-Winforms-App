@@ -1,4 +1,4 @@
-﻿namespace Licenses_Test_Winforms_App
+namespace Licenses_Test_Winforms_App
 {
     partial class Form1
     {
@@ -29,13 +29,14 @@
             grpCredentials = new GroupBox();
             txtLicenseKey = new TextBox();
             lblLicenseKey = new Label();
-            txtUserName = new TextBox();
-            lblUserName = new Label();
             pnlStatus = new Panel();
             lblValidationTime = new Label();
             lblStatus = new Label();
             lblStatusTitle = new Label();
+            btnUseCachedLicense = new Button();
+            btnClearCachedLicense = new Button();
             btnValidate = new Button();
+            btnValidateOffline = new Button();
             btnClear = new Button();
             lstFeatures = new ListBox();
             lblFeatures = new Label();
@@ -123,43 +124,27 @@
 
             grpCredentials.Controls.Add(txtLicenseKey);
             grpCredentials.Controls.Add(lblLicenseKey);
-            grpCredentials.Controls.Add(txtUserName);
-            grpCredentials.Controls.Add(lblUserName);
             grpCredentials.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
             grpCredentials.Location = new Point(20, 265);
             grpCredentials.Name = "grpCredentials";
-            grpCredentials.Size = new Size(460, 85);
+            grpCredentials.Size = new Size(460, 55);
             grpCredentials.TabIndex = 2;
             grpCredentials.TabStop = false;
-            grpCredentials.Text = "License Credentials";
-
-            lblUserName.AutoSize = true;
-            lblUserName.Font = new Font("Segoe UI", 9F);
-            lblUserName.Location = new Point(15, 25);
-            lblUserName.Name = "lblUserName";
-            lblUserName.Size = new Size(68, 15);
-            lblUserName.Text = "User Name:";
-
-            txtUserName.Font = new Font("Segoe UI", 9F);
-            txtUserName.Location = new Point(15, 45);
-            txtUserName.Name = "txtUserName";
-            txtUserName.PlaceholderText = "john.doe@example.com";
-            txtUserName.Size = new Size(200, 23);
-            txtUserName.TabIndex = 4;
+            grpCredentials.Text = "License Key";
 
             lblLicenseKey.AutoSize = true;
             lblLicenseKey.Font = new Font("Segoe UI", 9F);
-            lblLicenseKey.Location = new Point(230, 25);
+            lblLicenseKey.Location = new Point(15, 25);
             lblLicenseKey.Name = "lblLicenseKey";
             lblLicenseKey.Size = new Size(71, 15);
             lblLicenseKey.Text = "License Key:";
 
             txtLicenseKey.Font = new Font("Segoe UI", 9F);
-            txtLicenseKey.Location = new Point(230, 45);
+            txtLicenseKey.Location = new Point(100, 22);
             txtLicenseKey.Name = "txtLicenseKey";
             txtLicenseKey.PlaceholderText = "XXXX-XXXX-XXXX-XXXX";
-            txtLicenseKey.Size = new Size(215, 23);
-            txtLicenseKey.TabIndex = 5;
+            txtLicenseKey.Size = new Size(345, 23);
+            txtLicenseKey.TabIndex = 4;
 
             pnlStatus.BackColor = Color.FromArgb(243, 244, 246);
             pnlStatus.BorderStyle = BorderStyle.FixedSingle;
@@ -194,35 +179,74 @@
             lblValidationTime.Size = new Size(0, 13);
             lblValidationTime.Text = "";
 
+            btnUseCachedLicense.BackColor = Color.FromArgb(59, 130, 246);
+            btnUseCachedLicense.FlatAppearance.BorderSize = 0;
+            btnUseCachedLicense.FlatStyle = FlatStyle.Flat;
+            btnUseCachedLicense.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            btnUseCachedLicense.ForeColor = Color.White;
+            btnUseCachedLicense.Location = new Point(20, 440);
+            btnUseCachedLicense.Name = "btnUseCachedLicense";
+            btnUseCachedLicense.Size = new Size(220, 34);
+            btnUseCachedLicense.TabIndex = 4;
+            btnUseCachedLicense.Text = "Use Cached License";
+            btnUseCachedLicense.UseVisualStyleBackColor = false;
+            btnUseCachedLicense.Click += btnUseCachedLicense_Click;
+
+            btnClearCachedLicense.BackColor = Color.FromArgb(239, 68, 68);
+            btnClearCachedLicense.FlatAppearance.BorderSize = 0;
+            btnClearCachedLicense.FlatStyle = FlatStyle.Flat;
+            btnClearCachedLicense.Font = new Font("Segoe UI", 9F);
+            btnClearCachedLicense.ForeColor = Color.White;
+            btnClearCachedLicense.Location = new Point(260, 440);
+            btnClearCachedLicense.Name = "btnClearCachedLicense";
+            btnClearCachedLicense.Size = new Size(220, 34);
+            btnClearCachedLicense.TabIndex = 5;
+            btnClearCachedLicense.Text = "Clear Cached License";
+            btnClearCachedLicense.UseVisualStyleBackColor = false;
+            btnClearCachedLicense.Click += btnClearCachedLicense_Click;
+
             btnValidate.BackColor = Color.FromArgb(34, 197, 94);
             btnValidate.FlatAppearance.BorderSize = 0;
             btnValidate.FlatStyle = FlatStyle.Flat;
             btnValidate.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
             btnValidate.ForeColor = Color.White;
-            btnValidate.Location = new Point(20, 440);
+            btnValidate.Location = new Point(20, 480);
             btnValidate.Name = "btnValidate";
             btnValidate.Size = new Size(220, 40);
-            btnValidate.TabIndex = 4;
+            btnValidate.TabIndex = 6;
             btnValidate.Text = "✓ Validate License";
             btnValidate.UseVisualStyleBackColor = false;
             btnValidate.Click += btnValidate_Click;
+
+            btnValidateOffline.BackColor = Color.FromArgb(59, 130, 246);
+            btnValidateOffline.FlatAppearance.BorderSize = 0;
+            btnValidateOffline.FlatStyle = FlatStyle.Flat;
+            btnValidateOffline.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+            btnValidateOffline.ForeColor = Color.White;
+            btnValidateOffline.Location = new Point(260, 480);
+            btnValidateOffline.Name = "btnValidateOffline";
+            btnValidateOffline.Size = new Size(220, 40);
+            btnValidateOffline.TabIndex = 7;
+            btnValidateOffline.Text = "📁 Validate from Cache";
+            btnValidateOffline.UseVisualStyleBackColor = false;
+            btnValidateOffline.Click += btnValidateOffline_Click;
 
             btnClear.BackColor = Color.FromArgb(107, 114, 128);
             btnClear.FlatAppearance.BorderSize = 0;
             btnClear.FlatStyle = FlatStyle.Flat;
             btnClear.Font = new Font("Segoe UI", 10F);
             btnClear.ForeColor = Color.White;
-            btnClear.Location = new Point(260, 440);
+            btnClear.Location = new Point(20, 530);
             btnClear.Name = "btnClear";
             btnClear.Size = new Size(220, 40);
-            btnClear.TabIndex = 5;
+            btnClear.TabIndex = 7;
             btnClear.Text = "Clear All";
             btnClear.UseVisualStyleBackColor = false;
             btnClear.Click += btnClear_Click;
 
             lblFeatures.AutoSize = true;
             lblFeatures.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-            lblFeatures.Location = new Point(20, 495);
+            lblFeatures.Location = new Point(20, 535);
             lblFeatures.Name = "lblFeatures";
             lblFeatures.Size = new Size(100, 15);
             lblFeatures.Text = "Assigned Features:";
@@ -230,21 +254,24 @@
             lstFeatures.Font = new Font("Segoe UI", 9F);
             lstFeatures.FormattingEnabled = true;
             lstFeatures.HorizontalScrollbar = true;
-            lstFeatures.Location = new Point(20, 515);
+            lstFeatures.Location = new Point(20, 580);
             lstFeatures.Name = "lstFeatures";
             lstFeatures.Size = new Size(460, 95);
-            lstFeatures.TabIndex = 6;
+            lstFeatures.TabIndex = 8;
 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             BackColor = Color.White;
-            ClientSize = new Size(500, 625);
+            ClientSize = new Size(500, 720);
             Controls.Add(lblTitle);
             Controls.Add(grpLicenseFile);
             Controls.Add(grpPublicKey);
             Controls.Add(grpCredentials);
             Controls.Add(pnlStatus);
+            Controls.Add(btnUseCachedLicense);
+            Controls.Add(btnClearCachedLicense);
             Controls.Add(btnValidate);
+            Controls.Add(btnValidateOffline);
             Controls.Add(btnClear);
             Controls.Add(lblFeatures);
             Controls.Add(lstFeatures);
@@ -279,13 +306,14 @@
         private GroupBox grpCredentials;
         private TextBox txtLicenseKey;
         private Label lblLicenseKey;
-        private TextBox txtUserName;
-        private Label lblUserName;
         private Panel pnlStatus;
         private Label lblValidationTime;
         private Label lblStatus;
         private Label lblStatusTitle;
+        private Button btnUseCachedLicense;
+        private Button btnClearCachedLicense;
         private Button btnValidate;
+        private Button btnValidateOffline;
         private Button btnClear;
         private Label lblFeatures;
         private ListBox lstFeatures;
