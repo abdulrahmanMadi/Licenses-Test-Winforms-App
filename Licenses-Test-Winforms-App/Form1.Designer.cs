@@ -33,7 +33,6 @@ namespace Licenses_Test_Winforms_App
             lblValidationTime = new Label();
             lblStatus = new Label();
             lblStatusTitle = new Label();
-            btnUseCachedLicense = new Button();
             btnClearCachedLicense = new Button();
             btnValidate = new Button();
             btnValidateOffline = new Button();
@@ -179,19 +178,6 @@ namespace Licenses_Test_Winforms_App
             lblValidationTime.Size = new Size(0, 13);
             lblValidationTime.Text = "";
 
-            btnUseCachedLicense.BackColor = Color.FromArgb(59, 130, 246);
-            btnUseCachedLicense.FlatAppearance.BorderSize = 0;
-            btnUseCachedLicense.FlatStyle = FlatStyle.Flat;
-            btnUseCachedLicense.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-            btnUseCachedLicense.ForeColor = Color.White;
-            btnUseCachedLicense.Location = new Point(20, 440);
-            btnUseCachedLicense.Name = "btnUseCachedLicense";
-            btnUseCachedLicense.Size = new Size(220, 34);
-            btnUseCachedLicense.TabIndex = 4;
-            btnUseCachedLicense.Text = "Use Cached License";
-            btnUseCachedLicense.UseVisualStyleBackColor = false;
-            btnUseCachedLicense.Click += btnUseCachedLicense_Click;
-
             btnClearCachedLicense.BackColor = Color.FromArgb(239, 68, 68);
             btnClearCachedLicense.FlatAppearance.BorderSize = 0;
             btnClearCachedLicense.FlatStyle = FlatStyle.Flat;
@@ -268,7 +254,6 @@ namespace Licenses_Test_Winforms_App
             Controls.Add(grpPublicKey);
             Controls.Add(grpCredentials);
             Controls.Add(pnlStatus);
-            Controls.Add(btnUseCachedLicense);
             Controls.Add(btnClearCachedLicense);
             Controls.Add(btnValidate);
             Controls.Add(btnValidateOffline);
@@ -310,7 +295,6 @@ namespace Licenses_Test_Winforms_App
         private Label lblValidationTime;
         private Label lblStatus;
         private Label lblStatusTitle;
-        private Button btnUseCachedLicense;
         private Button btnClearCachedLicense;
         private Button btnValidate;
         private Button btnValidateOffline;
