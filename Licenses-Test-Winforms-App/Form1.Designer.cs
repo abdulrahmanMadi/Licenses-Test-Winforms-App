@@ -29,6 +29,12 @@ namespace Licenses_Test_Winforms_App
             grpCredentials = new GroupBox();
             txtLicenseKey = new TextBox();
             lblLicenseKey = new Label();
+            grpUpdates = new GroupBox();
+            lblUpdAppVer = new Label();
+            txtAppVersion = new TextBox();
+            lblUpdProductId = new Label();
+            txtProductId = new TextBox();
+            btnCheckUpdates = new Button();
             pnlStatus = new Panel();
             lblValidationTime = new Label();
             lblStatus = new Label();
@@ -42,6 +48,7 @@ namespace Licenses_Test_Winforms_App
             grpLicenseFile.SuspendLayout();
             grpPublicKey.SuspendLayout();
             grpCredentials.SuspendLayout();
+            grpUpdates.SuspendLayout();
             pnlStatus.SuspendLayout();
             SuspendLayout();
 
@@ -145,12 +152,62 @@ namespace Licenses_Test_Winforms_App
             txtLicenseKey.Size = new Size(345, 23);
             txtLicenseKey.TabIndex = 4;
 
+            grpUpdates.Controls.Add(btnCheckUpdates);
+            grpUpdates.Controls.Add(txtProductId);
+            grpUpdates.Controls.Add(lblUpdProductId);
+            grpUpdates.Controls.Add(txtAppVersion);
+            grpUpdates.Controls.Add(lblUpdAppVer);
+            grpUpdates.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            grpUpdates.Location = new Point(20, 328);
+            grpUpdates.Name = "grpUpdates";
+            grpUpdates.Size = new Size(460, 98);
+            grpUpdates.TabIndex = 8;
+            grpUpdates.TabStop = false;
+            grpUpdates.Text = "License-aware updates";
+
+            lblUpdAppVer.AutoSize = true;
+            lblUpdAppVer.Font = new Font("Segoe UI", 9F);
+            lblUpdAppVer.Location = new Point(15, 28);
+            lblUpdAppVer.Name = "lblUpdAppVer";
+            lblUpdAppVer.Size = new Size(120, 15);
+            lblUpdAppVer.Text = "Your app version:";
+
+            txtAppVersion.Font = new Font("Segoe UI", 9F);
+            txtAppVersion.Location = new Point(15, 48);
+            txtAppVersion.Name = "txtAppVersion";
+            txtAppVersion.PlaceholderText = "e.g. 1.0.0";
+            txtAppVersion.Size = new Size(120, 23);
+            txtAppVersion.TabIndex = 9;
+
+            lblUpdProductId.AutoSize = true;
+            lblUpdProductId.Font = new Font("Segoe UI", 9F);
+            lblUpdProductId.Location = new Point(160, 28);
+            lblUpdProductId.Name = "lblUpdProductId";
+            lblUpdProductId.Size = new Size(200, 15);
+            lblUpdProductId.Text = "Product ID (optional GUID):";
+
+            txtProductId.Font = new Font("Consolas", 8F);
+            txtProductId.Location = new Point(160, 48);
+            txtProductId.Name = "txtProductId";
+            txtProductId.PlaceholderText = "From dashboard product settings";
+            txtProductId.Size = new Size(285, 23);
+            txtProductId.TabIndex = 10;
+
+            btnCheckUpdates.Font = new Font("Segoe UI", 9F);
+            btnCheckUpdates.Location = new Point(15, 72);
+            btnCheckUpdates.Name = "btnCheckUpdates";
+            btnCheckUpdates.Size = new Size(200, 26);
+            btnCheckUpdates.TabIndex = 11;
+            btnCheckUpdates.Text = "Check for updates";
+            btnCheckUpdates.UseVisualStyleBackColor = true;
+            btnCheckUpdates.Click += btnCheckUpdates_Click;
+
             pnlStatus.BackColor = Color.FromArgb(243, 244, 246);
             pnlStatus.BorderStyle = BorderStyle.FixedSingle;
             pnlStatus.Controls.Add(lblValidationTime);
             pnlStatus.Controls.Add(lblStatus);
             pnlStatus.Controls.Add(lblStatusTitle);
-            pnlStatus.Location = new Point(20, 360);
+            pnlStatus.Location = new Point(20, 432);
             pnlStatus.Name = "pnlStatus";
             pnlStatus.Size = new Size(460, 70);
             pnlStatus.TabIndex = 3;
@@ -183,7 +240,7 @@ namespace Licenses_Test_Winforms_App
             btnClearCachedLicense.FlatStyle = FlatStyle.Flat;
             btnClearCachedLicense.Font = new Font("Segoe UI", 9F);
             btnClearCachedLicense.ForeColor = Color.White;
-            btnClearCachedLicense.Location = new Point(260, 440);
+            btnClearCachedLicense.Location = new Point(260, 512);
             btnClearCachedLicense.Name = "btnClearCachedLicense";
             btnClearCachedLicense.Size = new Size(220, 34);
             btnClearCachedLicense.TabIndex = 5;
@@ -196,7 +253,7 @@ namespace Licenses_Test_Winforms_App
             btnValidate.FlatStyle = FlatStyle.Flat;
             btnValidate.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
             btnValidate.ForeColor = Color.White;
-            btnValidate.Location = new Point(20, 480);
+            btnValidate.Location = new Point(20, 552);
             btnValidate.Name = "btnValidate";
             btnValidate.Size = new Size(220, 40);
             btnValidate.TabIndex = 6;
@@ -209,7 +266,7 @@ namespace Licenses_Test_Winforms_App
             btnValidateOffline.FlatStyle = FlatStyle.Flat;
             btnValidateOffline.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
             btnValidateOffline.ForeColor = Color.White;
-            btnValidateOffline.Location = new Point(260, 480);
+            btnValidateOffline.Location = new Point(260, 552);
             btnValidateOffline.Name = "btnValidateOffline";
             btnValidateOffline.Size = new Size(220, 40);
             btnValidateOffline.TabIndex = 7;
@@ -222,7 +279,7 @@ namespace Licenses_Test_Winforms_App
             btnClear.FlatStyle = FlatStyle.Flat;
             btnClear.Font = new Font("Segoe UI", 10F);
             btnClear.ForeColor = Color.White;
-            btnClear.Location = new Point(20, 530);
+            btnClear.Location = new Point(20, 602);
             btnClear.Name = "btnClear";
             btnClear.Size = new Size(220, 40);
             btnClear.TabIndex = 7;
@@ -232,7 +289,7 @@ namespace Licenses_Test_Winforms_App
 
             lblFeatures.AutoSize = true;
             lblFeatures.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-            lblFeatures.Location = new Point(20, 535);
+            lblFeatures.Location = new Point(20, 657);
             lblFeatures.Name = "lblFeatures";
             lblFeatures.Size = new Size(100, 15);
             lblFeatures.Text = "Assigned Features:";
@@ -240,7 +297,7 @@ namespace Licenses_Test_Winforms_App
             lstFeatures.Font = new Font("Segoe UI", 9F);
             lstFeatures.FormattingEnabled = true;
             lstFeatures.HorizontalScrollbar = true;
-            lstFeatures.Location = new Point(20, 580);
+            lstFeatures.Location = new Point(20, 682);
             lstFeatures.Name = "lstFeatures";
             lstFeatures.Size = new Size(460, 95);
             lstFeatures.TabIndex = 8;
@@ -248,11 +305,12 @@ namespace Licenses_Test_Winforms_App
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             BackColor = Color.White;
-            ClientSize = new Size(500, 720);
+            ClientSize = new Size(500, 800);
             Controls.Add(lblTitle);
             Controls.Add(grpLicenseFile);
             Controls.Add(grpPublicKey);
             Controls.Add(grpCredentials);
+            Controls.Add(grpUpdates);
             Controls.Add(pnlStatus);
             Controls.Add(btnClearCachedLicense);
             Controls.Add(btnValidate);
@@ -271,6 +329,8 @@ namespace Licenses_Test_Winforms_App
             grpPublicKey.PerformLayout();
             grpCredentials.ResumeLayout(false);
             grpCredentials.PerformLayout();
+            grpUpdates.ResumeLayout(false);
+            grpUpdates.PerformLayout();
             pnlStatus.ResumeLayout(false);
             pnlStatus.PerformLayout();
             ResumeLayout(false);
@@ -291,6 +351,12 @@ namespace Licenses_Test_Winforms_App
         private GroupBox grpCredentials;
         private TextBox txtLicenseKey;
         private Label lblLicenseKey;
+        private GroupBox grpUpdates;
+        private Label lblUpdAppVer;
+        private TextBox txtAppVersion;
+        private Label lblUpdProductId;
+        private TextBox txtProductId;
+        private Button btnCheckUpdates;
         private Panel pnlStatus;
         private Label lblValidationTime;
         private Label lblStatus;

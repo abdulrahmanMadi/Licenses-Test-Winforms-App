@@ -1,4 +1,5 @@
 using System.Windows.Forms;
+using LicenPro.SDK.AppHosting;
 
 namespace Licenses_Test_Winforms_App
 {
@@ -11,6 +12,7 @@ namespace Licenses_Test_Winforms_App
         static void Main()
         {
             ApplicationConfiguration.Initialize();
+            SdkBootstrap.OnApplicationStartup();
             Application.Run(new Form1());
         }
     }

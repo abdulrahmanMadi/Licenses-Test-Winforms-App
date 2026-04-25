@@ -1,8 +1,12 @@
 using System;
 using System.Drawing;
 using System.IO;
+using System.Reflection;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using LicenPro.SDK;
+using LicenPro.SDK.AppHosting;
+using LicenPro.SDK.Updates;
 using LicenPro.Utilities;
 
 namespace Licenses_Test_Winforms_App
@@ -14,7 +18,8 @@ namespace Licenses_Test_Winforms_App
         public Form1()
         {
             InitializeComponent();
-            Shown += async (_, __) => await TryAutoValidateAsync();
+            txtAppVersion.Text = SdkAssemblyInfo.GetSemanticVersionString(Assembly.GetExecutingAssembly());
+            Shown += async (_, __) => await RunStartupLicenseCheckAsync();
             FormClosing += async (_, __) =>
             {
                 if (_licenseClient != null)
@@ -62,7 +67,7 @@ namespace Licenses_Test_Winforms_App
             if (!string.IsNullOrWhiteSpace(licensePath) &&
                 Path.GetFileName(licensePath).Equals("license.bin", StringComparison.OrdinalIgnoreCase))
             {
-                await ValidateFromCacheAsync().ConfigureAwait(false);
+                await ValidateFromCacheAsync();
                 return;
             }
 
@@ -76,61 +81,50 @@ namespace Licenses_Test_Winforms_App
 
             try
             {
-                var licenseBytes = await File.ReadAllBytesAsync(licensePath);
-                byte[] plainBytes;
+                var productId = string.IsNullOrWhiteSpace(txtProductId.Text) ? null : txtProductId.Text.Trim();
+                var cacheResult = await LicenseClient.ValidateAndCacheAsync(
+                    licensePath,
+                    txtPublicKey.Text,
+                    txtLicenseKey.Text,
+                    expectedLicenseType: null,
+                    productId: productId);
 
-                // Decrypt if protected
-                if (LicenseFileProtector.LooksProtected(licenseBytes))
-                    plainBytes = await LicenseFileProtector.UnprotectAsync(licenseBytes, txtLicenseKey.Text);
-                else
-                    plainBytes = licenseBytes;
-
-                // Save to temp file for validation
-                var tempPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "license.tmp");
-                await File.WriteAllBytesAsync(tempPath, plainBytes);
-
-                try
+                if (cacheResult.IsSuccess && cacheResult.ValidationResult?.License != null)
                 {
-                    _licenseClient = new LicenseClient(new LicenseClientOptions
+                    await ReplaceLicenseClientAsync(cacheResult.Client);
+                    UpdateStatus("VALID", Color.Green);
+                    pnlStatus.BackColor = Color.FromArgb(220, 252, 231);
+                    RefreshFeaturesList();
+
+                    var license = cacheResult.ValidationResult.License;
+                    MessageBox.Show(
+                        $"License Valid!\n\nType: {license.Type}\nKey: {license.LicenseKey}\nIssued: {license.IssuedOn:yyyy-MM-dd}" +
+                        (license.ExpirationDate.HasValue ? $"\nExpires: {license.ExpirationDate.Value:yyyy-MM-dd}" : ""),
+                        "Valid", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                    ShowSubscriptionExpiryAlertIfNeeded(cacheResult.ValidationResult, useMessageBox: true);
+
+                    _ = Task.Run(async () =>
                     {
-                        LicenseFilePath = tempPath,
-                        PublicKey = txtPublicKey.Text,
-                        LicenseKey = txtLicenseKey.Text,
-                        AllowNonBinFiles = true
-                    });
-
-                    var result = await _licenseClient.ValidateAsync();
-
-                    if (result.IsValid)
-                    {
-                        // Cache license + credentials
-                        await LicenseCache.SaveAsync(plainBytes, txtLicenseKey.Text, txtPublicKey.Text);
-
-                        UpdateStatus("VALID", Color.Green);
-                        pnlStatus.BackColor = Color.FromArgb(220, 252, 231);
-                        RefreshFeaturesList();
-
-                        var license = result.License!;
-                        MessageBox.Show(
-                            $"License Valid!\n\nType: {license.Type}\nKey: {license.LicenseKey}\nIssued: {license.IssuedOn:yyyy-MM-dd}" +
-                            (license.ExpirationDate.HasValue ? $"\nExpires: {license.ExpirationDate.Value:yyyy-MM-dd}" : ""),
-                            "Valid", MessageBoxButtons.OK, MessageBoxIcon.Information);
-
-                        // Connect session in background
-                        _ = Task.Run(async () =>
+                        try
                         {
-                            try { await _licenseClient.ConnectSessionAsync(); }
-                            catch { }
-                        });
-                    }
-                    else
-                    {
-                        ShowValidationError(result);
-                    }
+                            if (_licenseClient != null)
+                                await _licenseClient.ConnectSessionAsync();
+                        }
+                        catch
+                        {
+                            /* non-fatal */
+                        }
+                    });
                 }
-                finally
+                else if (cacheResult.ValidationResult != null)
                 {
-                    if (File.Exists(tempPath)) File.Delete(tempPath);
+                    ApplyValidationFailureFeedback(cacheResult.ValidationResult);
+                }
+                else
+                {
+                    MessageBox.Show(cacheResult.Message, "Validation", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    UpdateStatus("Error", Color.Red);
                 }
             }
             catch (Exception ex)
@@ -148,7 +142,7 @@ namespace Licenses_Test_Winforms_App
                 return;
             }
 
-            await ValidateFromCacheAsync().ConfigureAwait(false);
+            await ValidateFromCacheAsync();
         }
 
         private async Task ValidateFromCacheAsync()
@@ -161,70 +155,68 @@ namespace Licenses_Test_Winforms_App
 
             UpdateStatus("Validating from cache...", Color.DodgerBlue);
 
-            var payload = await LicenseCache.LoadAsync().ConfigureAwait(false);
-            if (payload == null)
-            {
-                if (string.IsNullOrWhiteSpace(txtLicenseKey.Text))
-                {
-                    MessageBox.Show(
-                        "This cached license was created using the old encrypted cache format.\n\nPlease enter the License Key once to read it, then validate online again to recreate the cache in the new format.",
-                        "License Key Required",
-                        MessageBoxButtons.OK,
-                        MessageBoxIcon.Information);
-                    UpdateStatus("Enter License Key to read cache", Color.Orange);
-                    pnlStatus.BackColor = Color.FromArgb(254, 243, 199);
-                    return;
-                }
+            var r = await LicenseClient.TryAutoValidateAsync(
+                string.IsNullOrWhiteSpace(txtLicenseKey.Text) ? null : txtLicenseKey.Text,
+                string.IsNullOrWhiteSpace(txtPublicKey.Text) ? null : txtPublicKey.Text);
 
-                payload = await LicenseCache.LoadAsync(txtLicenseKey.Text).ConfigureAwait(false);
-                if (payload == null)
-                {
-                    MessageBox.Show(
-                        "Unable to read cached license. This usually means the License Key is wrong, or the cache file is corrupted.\n\nTry validating online again to re-create the cache.",
-                        "Cache Read Failed",
-                        MessageBoxButtons.OK,
-                        MessageBoxIcon.Warning);
-                    UpdateStatus("Cache read failed", Color.OrangeRed);
-                    pnlStatus.BackColor = Color.FromArgb(254, 226, 226);
-                    return;
-                }
+            ApplyCacheCredentialHints(r);
+
+            if (r.Status == CacheValidationStatus.CacheNotFound)
+            {
+                MessageBox.Show("No cached license. Validate online first.", "Cache Not Found", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
             }
 
-            if (string.IsNullOrWhiteSpace(txtLicenseKey.Text))
-                txtLicenseKey.Text = payload.LicenseKey;
-            if (string.IsNullOrWhiteSpace(txtPublicKey.Text))
-                txtPublicKey.Text = payload.PublicKey;
-
-            var result = await LicenseCache.ValidateCachedAsync(txtPublicKey.Text, txtLicenseKey.Text).ConfigureAwait(false);
-
-            if (result?.IsValid == true)
+            if (r.Status == CacheValidationStatus.LicenseKeyRequired)
             {
+                MessageBox.Show(r.Message, "License Key Required", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                UpdateStatus("Enter License Key to read cache", Color.Orange);
+                pnlStatus.BackColor = Color.FromArgb(254, 243, 199);
+                return;
+            }
+
+            if (r.Status == CacheValidationStatus.CacheCorrupted)
+            {
+                MessageBox.Show(r.Message, "Cache Read Failed", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                UpdateStatus("Cache read failed", Color.OrangeRed);
+                pnlStatus.BackColor = Color.FromArgb(254, 226, 226);
+                return;
+            }
+
+            if (r.IsSuccess && r.ValidationResult?.License != null)
+            {
+                await ReplaceLicenseClientAsync(r.Client);
                 UpdateStatus("VALID (CACHED)", Color.Green);
                 pnlStatus.BackColor = Color.FromArgb(220, 252, 231);
                 RefreshFeaturesList();
 
-                var license = result.License!;
+                var license = r.ValidationResult.License;
                 MessageBox.Show(
                     $"Cached License Valid!\n\nType: {license.Type}\nKey: {license.LicenseKey}\nIssued: {license.IssuedOn:yyyy-MM-dd}" +
                     (license.ExpirationDate.HasValue ? $"\nExpires: {license.ExpirationDate.Value:yyyy-MM-dd}" : ""),
                     "Valid (Cached)",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Information);
+
+                ShowSubscriptionExpiryAlertIfNeeded(r.ValidationResult, useMessageBox: true);
+                return;
             }
-            else if (result != null)
+
+            if (r.ValidationResult != null)
             {
-                ShowValidationError(result);
+                ApplyValidationFailureFeedback(r.ValidationResult);
+                return;
             }
-            else
-            {
-                MessageBox.Show(
-                    "Cached validation failed. Please confirm the License Key and Public Key are correct.",
-                    "Invalid",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Warning);
-                UpdateStatus("INVALID", Color.Red);
-                pnlStatus.BackColor = Color.FromArgb(254, 226, 226);
-            }
+
+            MessageBox.Show(
+                string.IsNullOrWhiteSpace(r.Message)
+                    ? "Cached validation failed. Please confirm the License Key and Public Key are correct."
+                    : r.Message,
+                "Invalid",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Warning);
+            UpdateStatus("INVALID", Color.Red);
+            pnlStatus.BackColor = Color.FromArgb(254, 226, 226);
         }
 
         private async void btnClear_Click(object? sender, EventArgs e)
@@ -250,54 +242,90 @@ namespace Licenses_Test_Winforms_App
             pnlStatus.BackColor = Color.FromArgb(254, 243, 199);
         }
 
-        private async Task TryAutoValidateAsync()
+        private async Task RunStartupLicenseCheckAsync()
         {
             if (!LicenseCache.Exists())
                 return;
 
-            var payload = await LicenseCache.LoadAsync().ConfigureAwait(false);
-            if (payload == null)
+            UpdateStatus("Auto validating...", Color.DodgerBlue);
+
+            var r = await LicenseClient.TryAutoValidateAsync(
+                string.IsNullOrWhiteSpace(txtLicenseKey.Text) ? null : txtLicenseKey.Text,
+                string.IsNullOrWhiteSpace(txtPublicKey.Text) ? null : txtPublicKey.Text);
+
+            ApplyCacheCredentialHints(r);
+
+            if (r.Status == CacheValidationStatus.CacheNotFound)
+                return;
+
+            if (r.Status == CacheValidationStatus.LicenseKeyRequired)
             {
                 UpdateStatus("Cache found - enter License Key to validate", Color.Orange);
+                pnlStatus.BackColor = Color.FromArgb(254, 243, 199);
                 return;
             }
 
-            if (string.IsNullOrWhiteSpace(txtLicenseKey.Text))
-                txtLicenseKey.Text = payload.LicenseKey;
-            if (string.IsNullOrWhiteSpace(txtPublicKey.Text))
-                txtPublicKey.Text = payload.PublicKey;
-
-            UpdateStatus("Auto validating...", Color.DodgerBlue);
-
-            var result = await LicenseCache.ValidateCachedAsync(txtPublicKey.Text, txtLicenseKey.Text).ConfigureAwait(false);
-
-            if (result?.IsValid == true)
+            if (r.IsSuccess)
             {
-                UpdateStatus("VALID (AUTO)", Color.Green);
-                pnlStatus.BackColor = Color.FromArgb(220, 252, 231);
+                await ReplaceLicenseClientAsync(r.Client);
+                if (r.ValidationResult?.ExpiryNotice is { } exp)
+                {
+                    UpdateStatus($"VALID (AUTO) — renew within {exp.WholeDaysRemaining} day(s)", Color.DarkOrange);
+                    pnlStatus.BackColor = Color.FromArgb(255, 247, 237);
+                }
+                else
+                {
+                    UpdateStatus("VALID (AUTO)", Color.Green);
+                    pnlStatus.BackColor = Color.FromArgb(220, 252, 231);
+                }
+
                 RefreshFeaturesList();
+                return;
             }
-            else
+
+            if (r.ValidationResult != null)
             {
-                UpdateStatus("Auto validation failed", Color.OrangeRed);
+                ApplyValidationFailureFeedback(r.ValidationResult);
+                return;
             }
+
+            UpdateStatus("Auto validation failed", Color.OrangeRed);
         }
 
-        private void ShowValidationError(LicenseValidationResult result)
+        private void ApplyCacheCredentialHints(CacheValidationResult r)
         {
-            MessageBox.Show(result.ErrorMessage, result.ErrorTitle, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            if (!string.IsNullOrEmpty(r.CachedLicenseKey) && string.IsNullOrWhiteSpace(txtLicenseKey.Text))
+                txtLicenseKey.Text = r.CachedLicenseKey;
+            if (!string.IsNullOrEmpty(r.CachedPublicKey) && string.IsNullOrWhiteSpace(txtPublicKey.Text))
+                txtPublicKey.Text = r.CachedPublicKey;
+        }
 
-            var (status, color, panel) = result.Status switch
-            {
-                LicenseValidationStatus.Expired => ("EXPIRED", Color.OrangeRed, Color.FromArgb(254, 226, 226)),
-                LicenseValidationStatus.DeviceBlocked => ("BLOCKED", Color.DarkRed, Color.FromArgb(254, 202, 202)),
-                LicenseValidationStatus.Revoked => ("REVOKED", Color.DarkRed, Color.FromArgb(254, 202, 202)),
-                _ => ("INVALID", Color.Red, Color.FromArgb(254, 226, 226))
-            };
+        private async Task ReplaceLicenseClientAsync(LicenseClient? newClient)
+        {
+            if (_licenseClient != null)
+                await _licenseClient.DisposeAsync();
+            _licenseClient = newClient;
+        }
 
-            UpdateStatus(status, color);
-            pnlStatus.BackColor = panel;
+        private void ApplyValidationFailureFeedback(LicenseValidationResult result)
+        {
+            var f = LicenseValidationFeedback.From(result);
+            MessageBox.Show(f.DialogMessage, f.DialogTitle, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            UpdateStatus(f.StatusLabel, Color.FromArgb(f.StatusTextColorArgb));
+            pnlStatus.BackColor = Color.FromArgb(f.PanelBackgroundArgb);
             lstFeatures.Items.Clear();
+        }
+
+        /// <summary>
+        /// Uses <see cref="LicenseValidationResult.ExpiryNotice"/> from the SDK (subscription / optional trial window).
+        /// </summary>
+        private static void ShowSubscriptionExpiryAlertIfNeeded(LicenseValidationResult? validationResult, bool useMessageBox)
+        {
+            if (validationResult?.ExpiryNotice is not { } notice)
+                return;
+
+            if (useMessageBox)
+                MessageBox.Show(notice.Message, notice.Title, MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
 
         private void RefreshFeaturesList()
@@ -322,6 +350,73 @@ namespace Licenses_Test_Winforms_App
             lblStatus.Text = message;
             lblStatus.ForeColor = color;
             lblValidationTime.Text = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+        }
+
+        private async void btnCheckUpdates_Click(object? sender, EventArgs e)
+        {
+            if (string.IsNullOrWhiteSpace(txtLicenseKey.Text))
+            {
+                MessageBox.Show("Enter your license key (same as for validation).", "Check for updates", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            var appVer = string.IsNullOrWhiteSpace(txtAppVersion.Text) ? "1.0.0" : txtAppVersion.Text.Trim();
+            var productId = string.IsNullOrWhiteSpace(txtProductId.Text) ? null : txtProductId.Text.Trim();
+
+            btnCheckUpdates.Enabled = false;
+            try
+            {
+                UpdateInfo? info;
+                if (_licenseClient?.License != null)
+                {
+                    info = await SdkUpdateManager.CheckForUpdateAsync(
+                        currentAppVersion: appVer,
+                        productId: productId);
+                }
+                else
+                {
+                    SdkUpdateManager.SetLicenseContext(
+                        txtLicenseKey.Text.Trim(),
+                        new PersistedHardwareIdentifier().GetHardwareIdentifier(),
+                        productId);
+                    info = await SdkUpdateManager.CheckForUpdateAsync(currentAppVersion: appVer);
+                }
+
+                if (info == null)
+                {
+                    MessageBox.Show(
+                        "No update returned. You may already be on the latest build allowed for this license, or the server could not match the license/product.\n\n" +
+                        "Tip: validate online once first (so the API base URL is configured), and set Product ID if the license is not linked to a release.",
+                        "No update",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Information);
+                }
+                else
+                {
+                    var notes = string.IsNullOrWhiteSpace(info.Changelog) ? "" : "\n\n" + info.Changelog;
+                    MessageBox.Show(
+                        $"Version {info.Version} is available for this license.{notes}",
+                        "Update available",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Information);
+                }
+            }
+            catch (InvalidOperationException ex)
+            {
+                MessageBox.Show(
+                    ex.Message + "\n\nValidate your license online once, or set ServerBaseEndpoint in licenpro.settings.json next to this app.",
+                    "SDK configuration",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Update check failed:\n{ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+            finally
+            {
+                btnCheckUpdates.Enabled = true;
+            }
         }
     }
 }
