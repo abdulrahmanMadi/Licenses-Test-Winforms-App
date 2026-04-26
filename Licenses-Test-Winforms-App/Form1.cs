@@ -361,7 +361,7 @@ namespace Licenses_Test_Winforms_App
             }
 
             var appVer = string.IsNullOrWhiteSpace(txtAppVersion.Text) ? "1.0.0" : txtAppVersion.Text.Trim();
-            var productId = string.IsNullOrWhiteSpace(txtProductId.Text) ? null : txtProductId.Text.Trim();
+            var productIdFromUi = string.IsNullOrWhiteSpace(txtProductId.Text) ? null : txtProductId.Text.Trim();
 
             btnCheckUpdates.Enabled = false;
             try
@@ -369,6 +369,7 @@ namespace Licenses_Test_Winforms_App
                 UpdateInfo? info;
                 if (_licenseClient?.License != null)
                 {
+                    var productId = productIdFromUi ?? _licenseClient.ResolvedProductIdForUpdates;
                     info = await SdkUpdateManager.CheckForUpdateAsync(
                         currentAppVersion: appVer,
                         productId: productId);
@@ -378,15 +379,21 @@ namespace Licenses_Test_Winforms_App
                     SdkUpdateManager.SetLicenseContext(
                         txtLicenseKey.Text.Trim(),
                         new PersistedHardwareIdentifier().GetHardwareIdentifier(),
-                        productId);
+                        productIdFromUi);
                     info = await SdkUpdateManager.CheckForUpdateAsync(currentAppVersion: appVer);
                 }
 
                 if (info == null)
                 {
+                    var serverHint = SdkUpdateManager.LastUpdateCheckMessage;
+                    var detail = string.IsNullOrWhiteSpace(serverHint)
+                        ? ""
+                        : "\n\nServer: " + serverHint;
                     MessageBox.Show(
-                        "No update returned. You may already be on the latest build allowed for this license, or the server could not match the license/product.\n\n" +
-                        "Tip: validate online once first (so the API base URL is configured), and set Product ID if the license is not linked to a release.",
+                        "No update returned. You may already be on the latest build allowed for this license, or the server could not match the license/product." +
+                        detail +
+                        "\n\nTip: validate online once first (so the API base URL is configured). Set Product ID if the license is not linked to a release. " +
+                        "Compare \"App version\" below with dashboard release numbers (must be lower than a released version you are allowed to use).",
                         "No update",
                         MessageBoxButtons.OK,
                         MessageBoxIcon.Information);
