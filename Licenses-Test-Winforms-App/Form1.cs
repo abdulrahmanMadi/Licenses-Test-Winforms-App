@@ -23,10 +23,10 @@ namespace Licenses_Test_Winforms_App
         {
             InitializeComponent();
             txtAppVersion.Text = GetDefaultAppVersionDisplay();
-            chkAutoCheckProductUpdates.Checked = LicenProLocalSettings.ReadAutoCheckProductUpdates();
+            chkAutoCheckProductUpdates.Checked = SdkConfiguration.AutoCheckProductUpdates;
             chkAutoCheckProductUpdates.CheckedChanged += (_, _) =>
             {
-                LicenProLocalSettings.WriteAutoCheckProductUpdates(chkAutoCheckProductUpdates.Checked);
+                SdkConfiguration.SetAutoCheckProductUpdates(chkAutoCheckProductUpdates.Checked);
                 ApplyPeriodicProductUpdateCheck();
             };
             txtAppVersion.TextChanged += (_, _) => RefreshEffectiveUpdateVersionDisplay();
