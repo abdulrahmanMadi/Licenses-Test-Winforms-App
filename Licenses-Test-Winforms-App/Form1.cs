@@ -1,9 +1,12 @@
 using System;
 using System.Drawing;
 using System.IO;
+using System.Net;
 using System.Reflection;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using LicenPro.Models.License;
 using LicenPro.SDK;
 using LicenPro.SDK.AppHosting;
 using LicenPro.SDK.Updates;
@@ -18,13 +21,93 @@ namespace Licenses_Test_Winforms_App
         public Form1()
         {
             InitializeComponent();
-            txtAppVersion.Text = SdkAssemblyInfo.GetSemanticVersionString(Assembly.GetExecutingAssembly());
+            txtAppVersion.Text = GetDefaultAppVersionDisplay();
+            chkAutoCheckProductUpdates.Checked = LicenProLocalSettings.ReadAutoCheckProductUpdates();
+            chkAutoCheckProductUpdates.CheckedChanged += (_, _) =>
+            {
+                LicenProLocalSettings.WriteAutoCheckProductUpdates(chkAutoCheckProductUpdates.Checked);
+                ApplyPeriodicProductUpdateCheck();
+            };
+            txtAppVersion.TextChanged += (_, _) => RefreshEffectiveUpdateVersionDisplay();
+            SdkUpdateManager.UpdateAvailable += OnSdkProductUpdateAvailable;
+            SetupFormTooltips();
+            RefreshEffectiveUpdateVersionDisplay();
             Shown += async (_, __) => await RunStartupLicenseCheckAsync();
             FormClosing += async (_, __) =>
             {
                 if (_licenseClient != null)
                     await _licenseClient.DisposeAsync();
             };
+        }
+
+        private void SetupFormTooltips()
+        {
+            void T(Control c, string text) => toolTipUi.SetToolTip(c, text);
+
+            T(lblTitle,
+                "Sample LicenPro validator: load your binary license, public key, and license key, then validate online or from cache.");
+            T(grpLicenseFile,
+                "Path to the encrypted license file (.bin) from the dashboard. If empty and cache exists, validation can use license.bin next to the app.");
+            T(lblLicenseFile, "Must match the file you downloaded for this license.");
+            T(txtLicenseFile, "Full path to license.bin (or Browse). Leave empty to use cached license.bin when validating.");
+            T(btnBrowseLicense, "Pick a .bin license file from disk.");
+
+            T(grpPublicKey,
+                "RSA public key for the product that signed the license. Copy from Dashboard → Product → Settings (Base64, no PEM headers).");
+            T(lblPublicKey, "Must be the key pair that signed this license file.");
+            T(txtPublicKey, "Paste Base64 public key or use Load to read a .pem/.txt file (headers stripped automatically).");
+            T(btnBrowsePublicKey, "Load public key from a PEM or text file.");
+
+            T(grpCredentials, "The license key string exactly as shown in the dashboard (used with the file for online validation).");
+            T(lblLicenseKey, "Same key you copy from the license record; required for online validation and cache unlock.");
+            T(txtLicenseKey, "Enter the full license key. Cached credentials may pre-fill this field.");
+
+            T(grpUpdates,
+                "Dashboard compares your current build (X-Current-Version) to releases you are allowed to use. " +
+                "If the license file includes an assigned release version, that value is used automatically; otherwise the editable field is used.");
+            T(lblUpdAppVer,
+                "Product / app version string. After validation, this may auto-fill from the license’s assigned release when embedded in the file.");
+            T(txtAppVersion,
+                "Semantic version of the build you are running (e.g. 1.0.0). Used for update checks when the license has no embedded release version.");
+            T(lblUpdProductId,
+                "Product GUID from the dashboard. Optional if your license type embeds product scope; required for some perpetual licenses.");
+            T(txtProductId,
+                "Paste the product Id (GUID) from Product Settings. Sent as X-Product-Id on update checks when set.");
+            T(lblEffectiveUpdateVersion,
+                "Read-only: the exact version string sent to the server as X-Current-Version. " +
+                "Priority: (1) release version embedded in the validated license, (2) the editable field, (3) 1.0.0 if empty.");
+            T(chkAutoCheckProductUpdates,
+                "When enabled and the license is valid, the SDK asks the server periodically (24h) whether a newer allowed release exists.");
+            T(btnCheckUpdates,
+                "Calls the license-aware update API now using your license key, hardware id, product id, and effective current version.");
+
+            T(pnlStatus, "Shows the result of the last validation attempt and a local timestamp.");
+            T(lblStatusTitle, "Heading for the validation result line.");
+            T(lblStatus, "VALID, INVALID, or other status from the SDK after validate or cache read.");
+            T(lblValidationTime, "Local time of the last status change.");
+
+            T(btnClearCachedLicense,
+                "Deletes license.bin in the app folder. Next online validation will download/cache a fresh copy.");
+            T(btnValidate,
+                "Validates online: uploads license file, checks signature and server rules, activates session when applicable.");
+            T(btnValidateOffline,
+                "Reads encrypted license.bin + keys from disk and validates using cached flow (requires prior online validate).");
+            T(btnClear,
+                "Disposes the license client, clears inputs, resets app version to assembly default, and stops auto update checks.");
+
+            T(lblFeatures, "Feature flags enabled on the license after successful validation.");
+            T(lstFeatures, "One line per feature from the validated license.");
+        }
+
+        private void RefreshEffectiveUpdateVersionDisplay()
+        {
+            var v = GetProductVersionForUpdateChecks();
+            var fromLicense = !string.IsNullOrWhiteSpace(_licenseClient?.License?.AssignedReleaseVersion);
+            var source = fromLicense
+                ? "assigned release embedded in license file"
+                : "editable app version field (or default 1.0.0 if empty)";
+            lblEffectiveUpdateVersion.Text =
+                $"Effective version for update check (X-Current-Version): {v}{Environment.NewLine}Source: {source}";
         }
 
         private void btnBrowseLicense_Click(object? sender, EventArgs e)
@@ -227,9 +310,13 @@ namespace Licenses_Test_Winforms_App
                 _licenseClient = null;
             }
 
+            SdkUpdateManager.DisableAutoCheck();
+
             txtLicenseFile.Text = "";
             txtPublicKey.Text = "";
             txtLicenseKey.Text = "";
+            txtAppVersion.Text = GetDefaultAppVersionDisplay();
+            RefreshEffectiveUpdateVersionDisplay();
             UpdateStatus("Not Validated", Color.Gray);
             pnlStatus.BackColor = Color.FromArgb(243, 244, 246);
             lstFeatures.Items.Clear();
@@ -305,6 +392,48 @@ namespace Licenses_Test_Winforms_App
             if (_licenseClient != null)
                 await _licenseClient.DisposeAsync();
             _licenseClient = newClient;
+            SyncAppVersionFieldFromValidatedLicense(newClient?.License);
+            RefreshEffectiveUpdateVersionDisplay();
+            ApplyPeriodicProductUpdateCheck();
+        }
+
+        /// <summary>
+        /// Starts or stops SDK periodic update checks based on local settings and a validated <see cref="LicenseClient"/>.
+        /// </summary>
+        private void ApplyPeriodicProductUpdateCheck()
+        {
+            SdkUpdateManager.DisableAutoCheck();
+            if (_licenseClient?.License == null || !chkAutoCheckProductUpdates.Checked)
+                return;
+
+            var appVer = GetProductVersionForUpdateChecks();
+            var pid = string.IsNullOrWhiteSpace(txtProductId.Text) ? null : txtProductId.Text.Trim();
+
+            _licenseClient.EnableAutoUpdates(
+                currentAppVersion: appVer,
+                productId: pid,
+                checkIntervalHours: 24,
+                onUpdateAvailable: null);
+        }
+
+        private void OnSdkProductUpdateAvailable(object? sender, UpdateAvailableEventArgs e)
+        {
+            if (!chkAutoCheckProductUpdates.Checked)
+                return;
+
+            void Show()
+            {
+                MessageBox.Show(
+                    $"An update is available: {e.NewVersion}\n\nUse \"Check for updates\" for details and download options.",
+                    "Product update",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+            }
+
+            if (InvokeRequired)
+                BeginInvoke(Show);
+            else
+                Show();
         }
 
         private void ApplyValidationFailureFeedback(LicenseValidationResult result)
@@ -345,11 +474,50 @@ namespace Licenses_Test_Winforms_App
             }
         }
 
+        private static string GetDefaultAppVersionDisplay() =>
+            SdkAssemblyInfo.GetSemanticVersionString(Assembly.GetExecutingAssembly());
+
+        /// <summary>Prefer release version embedded in the validated license over the sample app's assembly version.</summary>
+        private void SyncAppVersionFieldFromValidatedLicense(BaseLicense? license)
+        {
+            if (!string.IsNullOrWhiteSpace(license?.AssignedReleaseVersion))
+                txtAppVersion.Text = license.AssignedReleaseVersion.Trim();
+        }
+
+        /// <summary>Version sent as X-Current-Version: license assignment wins so update checks match dashboard release.</summary>
+        private string GetProductVersionForUpdateChecks()
+        {
+            if (!string.IsNullOrWhiteSpace(_licenseClient?.License?.AssignedReleaseVersion))
+                return _licenseClient.License.AssignedReleaseVersion.Trim();
+            var ui = txtAppVersion.Text.Trim();
+            return string.IsNullOrEmpty(ui) ? "1.0.0" : ui;
+        }
+
         private void UpdateStatus(string message, Color color)
         {
             lblStatus.Text = message;
             lblStatus.ForeColor = color;
             lblValidationTime.Text = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+        }
+
+        /// <summary>
+        /// Dashboard release notes are often HTML (rich editor). MessageBox only shows plain text.
+        /// </summary>
+        private static string PlainTextFromHtmlChangelog(string? html)
+        {
+            if (string.IsNullOrWhiteSpace(html))
+                return string.Empty;
+
+            var s = WebUtility.HtmlDecode(html.Trim());
+            s = s.Replace('\u00A0', ' ');
+
+            s = Regex.Replace(s, @"</?(p|div|li|h[1-6]|tr|section|article|blockquote)\b[^>]*>", "\n", RegexOptions.IgnoreCase);
+            s = Regex.Replace(s, @"<br\s*/?>", "\n", RegexOptions.IgnoreCase);
+            s = Regex.Replace(s, @"<[^>]+>", string.Empty);
+
+            s = Regex.Replace(s, @"[ \t\f\v]{2,}", " ");
+            s = Regex.Replace(s, @"(\r?\n){3,}", "\n\n");
+            return s.Trim();
         }
 
         private async void btnCheckUpdates_Click(object? sender, EventArgs e)
@@ -360,7 +528,7 @@ namespace Licenses_Test_Winforms_App
                 return;
             }
 
-            var appVer = string.IsNullOrWhiteSpace(txtAppVersion.Text) ? "1.0.0" : txtAppVersion.Text.Trim();
+            var appVer = GetProductVersionForUpdateChecks();
             var productIdFromUi = string.IsNullOrWhiteSpace(txtProductId.Text) ? null : txtProductId.Text.Trim();
 
             btnCheckUpdates.Enabled = false;
@@ -400,7 +568,10 @@ namespace Licenses_Test_Winforms_App
                 }
                 else
                 {
-                    var notes = string.IsNullOrWhiteSpace(info.Changelog) ? "" : "\n\n" + info.Changelog;
+                    var plainNotes = PlainTextFromHtmlChangelog(info.Changelog);
+                    var notes = string.IsNullOrWhiteSpace(plainNotes)
+                        ? ""
+                        : "\n\nWhat's new:\n" + plainNotes;
                     MessageBox.Show(
                         $"Version {info.Version} is available for this license.{notes}",
                         "Update available",
@@ -424,6 +595,11 @@ namespace Licenses_Test_Winforms_App
             {
                 btnCheckUpdates.Enabled = true;
             }
+        }
+
+        private void Form1_Load(object sender, EventArgs e)
+        {
+
         }
     }
 }
