@@ -31,6 +31,7 @@ namespace Licenses_Test_Winforms_App
             txtLicenseKey = new TextBox();
             lblLicenseKey = new Label();
             grpUpdates = new GroupBox();
+            btnOpenLicensedDownload = new Button();
             btnCheckUpdates = new Button();
             chkAutoCheckProductUpdates = new CheckBox();
             lblEffectiveUpdateVersion = new Label();
@@ -197,6 +198,7 @@ namespace Licenses_Test_Winforms_App
             // 
             // grpUpdates
             // 
+            grpUpdates.Controls.Add(btnOpenLicensedDownload);
             grpUpdates.Controls.Add(btnCheckUpdates);
             grpUpdates.Controls.Add(chkAutoCheckProductUpdates);
             grpUpdates.Controls.Add(lblEffectiveUpdateVersion);
@@ -220,11 +222,23 @@ namespace Licenses_Test_Winforms_App
             btnCheckUpdates.Location = new Point(17, 165);
             btnCheckUpdates.Margin = new Padding(3, 4, 3, 4);
             btnCheckUpdates.Name = "btnCheckUpdates";
-            btnCheckUpdates.Size = new Size(229, 35);
+            btnCheckUpdates.Size = new Size(235, 35);
             btnCheckUpdates.TabIndex = 11;
             btnCheckUpdates.Text = "Check for updates";
             btnCheckUpdates.UseVisualStyleBackColor = true;
             btnCheckUpdates.Click += btnCheckUpdates_Click;
+            // 
+            // btnOpenLicensedDownload
+            // 
+            btnOpenLicensedDownload.Font = new Font("Segoe UI", 9F);
+            btnOpenLicensedDownload.Location = new Point(265, 165);
+            btnOpenLicensedDownload.Margin = new Padding(3, 4, 3, 4);
+            btnOpenLicensedDownload.Name = "btnOpenLicensedDownload";
+            btnOpenLicensedDownload.Size = new Size(244, 35);
+            btnOpenLicensedDownload.TabIndex = 16;
+            btnOpenLicensedDownload.Text = "Open download (licensed version)";
+            btnOpenLicensedDownload.UseVisualStyleBackColor = true;
+            btnOpenLicensedDownload.Click += btnOpenLicensedDownload_Click;
             // 
             // chkAutoCheckProductUpdates
             // 
@@ -483,6 +497,7 @@ namespace Licenses_Test_Winforms_App
         private Label lblUpdProductId;
         private TextBox txtProductId;
         private CheckBox chkAutoCheckProductUpdates;
+        private Button btnOpenLicensedDownload;
         private Button btnCheckUpdates;
         private Panel pnlStatus;
         private Label lblValidationTime;

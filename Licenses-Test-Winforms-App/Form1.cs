@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Net;
@@ -80,6 +81,9 @@ namespace Licenses_Test_Winforms_App
                 "When enabled and the license is valid, the SDK asks the server periodically (24h) whether a newer allowed release exists.");
             T(btnCheckUpdates,
                 "Calls the license-aware update API now using your license key, hardware id, product id, and effective current version.");
+            T(btnOpenLicensedDownload,
+                "Asks the server for the download link of the newest released build your license may use (same rules as updates), then opens it in your browser. " +
+                "Requires license key; validate online once so the API URL is configured.");
 
             T(pnlStatus, "Shows the result of the last validation attempt and a local timestamp.");
             T(lblStatusTitle, "Heading for the validation result line.");
@@ -518,6 +522,84 @@ namespace Licenses_Test_Winforms_App
             s = Regex.Replace(s, @"[ \t\f\v]{2,}", " ");
             s = Regex.Replace(s, @"(\r?\n){3,}", "\n\n");
             return s.Trim();
+        }
+
+        private async void btnOpenLicensedDownload_Click(object? sender, EventArgs e)
+        {
+            if (string.IsNullOrWhiteSpace(txtLicenseKey.Text))
+            {
+                MessageBox.Show("Enter your license key (same as for validation).", "Licensed download", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            var productIdFromUi = string.IsNullOrWhiteSpace(txtProductId.Text) ? null : txtProductId.Text.Trim();
+            var hw = new PersistedHardwareIdentifier().GetHardwareIdentifier();
+
+            btnOpenLicensedDownload.Enabled = false;
+            try
+            {
+                if (_licenseClient?.License != null)
+                {
+                    var productId = productIdFromUi ?? _licenseClient.ResolvedProductIdForUpdates;
+                    SdkUpdateManager.SetLicenseContext(txtLicenseKey.Text.Trim(), hw, productId);
+                }
+                else
+                {
+                    SdkUpdateManager.SetLicenseContext(txtLicenseKey.Text.Trim(), hw, productIdFromUi);
+                }
+
+                var res = await SdkUpdateManager.GetEntitledReleaseDownloadAsync();
+                if (!res.HasDownload || string.IsNullOrWhiteSpace(res.DownloadUrl))
+                {
+                    var msg = string.IsNullOrWhiteSpace(res.Message)
+                        ? "The server did not return a download link."
+                        : res.Message;
+                    MessageBox.Show(msg, "Licensed download", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+
+                if (!Uri.TryCreate(res.DownloadUrl.Trim(), UriKind.Absolute, out var uri) ||
+                    (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+                {
+                    MessageBox.Show(
+                        "The server returned a link that cannot be opened automatically. Copy it from the dashboard release page instead.\n\n" + res.DownloadUrl,
+                        "Licensed download",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+                    return;
+                }
+
+                var ver = string.IsNullOrWhiteSpace(res.Version) ? "" : $" ({res.Version})";
+                var opened = MessageBox.Show(
+                    $"Open download{ver} in your browser?\n\n{res.DownloadUrl}",
+                    "Licensed download",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Question);
+                if (opened != DialogResult.Yes)
+                    return;
+
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = res.DownloadUrl.Trim(),
+                    UseShellExecute = true
+                });
+            }
+            catch (InvalidOperationException ex)
+            {
+                MessageBox.Show(
+                    ex.Message + "\n\nValidate your license online once, or set ServerBaseEndpoint in licenpro.settings.json next to this app.",
+                    "SDK configuration",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Could not resolve download:\n{ex.Message}", "Licensed download", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+            finally
+            {
+                btnOpenLicensedDownload.Enabled = true;
+            }
         }
 
         private async void btnCheckUpdates_Click(object? sender, EventArgs e)
