@@ -88,6 +88,7 @@ namespace Licenses_Test_Winforms_App
             T(pnlStatus, "Shows the result of the last validation attempt and a local timestamp.");
             T(lblStatusTitle, "Heading for the validation result line.");
             T(lblStatus, "VALID, INVALID, or other status from the SDK after validate or cache read.");
+            T(lblStatusDetail, "Detailed validation message (errors show here instead of a popup).");
             T(lblValidationTime, "Local time of the last status change.");
 
             T(btnClearCachedLicense,
@@ -101,6 +102,12 @@ namespace Licenses_Test_Winforms_App
 
             T(lblFeatures, "Feature flags enabled on the license after successful validation.");
             T(lstFeatures, "One line per feature from the validated license.");
+            T(grpLicenseDetails, "License metadata from the signed file and server (name from server on online / first offline run).");
+            T(lblDetailName, "Dashboard license name.");
+            T(lblDetailIssued, "When the license was issued (UTC).");
+            T(lblDetailIssuer, "Organization or issuer recorded on the license.");
+            T(lblDetailMode, "Online = server validation every run. Offline = server once on first run, then local.");
+            T(lblDetailType, "License type from the signed file (Perpetual, Trial, etc.).");
         }
 
         private void RefreshEffectiveUpdateVersionDisplay()
@@ -179,9 +186,10 @@ namespace Licenses_Test_Winforms_App
                 if (cacheResult.IsSuccess && cacheResult.ValidationResult?.License != null)
                 {
                     await ReplaceLicenseClientAsync(cacheResult.Client);
-                    UpdateStatus("VALID", Color.Green);
+                    UpdateStatus("VALID", Color.Green, "License validated successfully.");
                     pnlStatus.BackColor = Color.FromArgb(220, 252, 231);
                     RefreshFeaturesList();
+                    RefreshLicenseDetailsPanel();
 
                     var license = cacheResult.ValidationResult.License;
                     MessageBox.Show(
@@ -210,14 +218,13 @@ namespace Licenses_Test_Winforms_App
                 }
                 else
                 {
-                    MessageBox.Show(cacheResult.Message, "Validation", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    UpdateStatus("Error", Color.Red);
+                    UpdateStatus("INVALID", Color.Red, cacheResult.Message);
+                    pnlStatus.BackColor = Color.FromArgb(254, 226, 226);
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                UpdateStatus("Error", Color.Red);
+                UpdateStatus("Error", Color.Red, ex.Message);
             }
         }
 
@@ -273,9 +280,10 @@ namespace Licenses_Test_Winforms_App
             if (r.IsSuccess && r.ValidationResult?.License != null)
             {
                 await ReplaceLicenseClientAsync(r.Client);
-                UpdateStatus("VALID (CACHED)", Color.Green);
+                UpdateStatus("VALID (CACHED)", Color.Green, "Cached license validated successfully.");
                 pnlStatus.BackColor = Color.FromArgb(220, 252, 231);
                 RefreshFeaturesList();
+                RefreshLicenseDetailsPanel();
 
                 var license = r.ValidationResult.License;
                 MessageBox.Show(
@@ -295,14 +303,10 @@ namespace Licenses_Test_Winforms_App
                 return;
             }
 
-            MessageBox.Show(
+            UpdateStatus("INVALID", Color.Red,
                 string.IsNullOrWhiteSpace(r.Message)
                     ? "Cached validation failed. Please confirm the License Key and Public Key are correct."
-                    : r.Message,
-                "Invalid",
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Warning);
-            UpdateStatus("INVALID", Color.Red);
+                    : r.Message);
             pnlStatus.BackColor = Color.FromArgb(254, 226, 226);
         }
 
@@ -321,9 +325,10 @@ namespace Licenses_Test_Winforms_App
             txtLicenseKey.Text = "";
             txtAppVersion.Text = GetDefaultAppVersionDisplay();
             RefreshEffectiveUpdateVersionDisplay();
-            UpdateStatus("Not Validated", Color.Gray);
+            UpdateStatus("Not Validated", Color.Gray, null);
             pnlStatus.BackColor = Color.FromArgb(243, 244, 246);
             lstFeatures.Items.Clear();
+            ClearLicenseDetailsPanel();
         }
 
         private void btnClearCachedLicense_Click(object? sender, EventArgs e)
@@ -371,6 +376,7 @@ namespace Licenses_Test_Winforms_App
                 }
 
                 RefreshFeaturesList();
+                RefreshLicenseDetailsPanel();
                 return;
             }
 
@@ -398,6 +404,7 @@ namespace Licenses_Test_Winforms_App
             _licenseClient = newClient;
             SyncAppVersionFieldFromValidatedLicense(newClient?.License);
             RefreshEffectiveUpdateVersionDisplay();
+            RefreshLicenseDetailsPanel();
             ApplyPeriodicProductUpdateCheck();
         }
 
@@ -443,10 +450,14 @@ namespace Licenses_Test_Winforms_App
         private void ApplyValidationFailureFeedback(LicenseValidationResult result)
         {
             var f = LicenseValidationFeedback.From(result);
-            MessageBox.Show(f.DialogMessage, f.DialogTitle, MessageBoxButtons.OK, MessageBoxIcon.Warning);
-            UpdateStatus(f.StatusLabel, Color.FromArgb(f.StatusTextColorArgb));
+            var detail = string.IsNullOrWhiteSpace(result.ErrorMessage) ? f.DialogTitle : result.ErrorMessage;
+            if (detail.Equals("Success", StringComparison.OrdinalIgnoreCase))
+                detail = "License not found.";
+
+            UpdateStatus(f.StatusLabel, Color.FromArgb(f.StatusTextColorArgb), detail);
             pnlStatus.BackColor = Color.FromArgb(f.PanelBackgroundArgb);
             lstFeatures.Items.Clear();
+            ClearLicenseDetailsPanel();
         }
 
         /// <summary>
@@ -478,6 +489,31 @@ namespace Licenses_Test_Winforms_App
             }
         }
 
+        private void RefreshLicenseDetailsPanel()
+        {
+            var info = LicenseInfoHelper.GetLicenseInfo(_licenseClient?.License);
+            if (info == null)
+            {
+                ClearLicenseDetailsPanel();
+                return;
+            }
+
+            lblDetailNameValue.Text = string.IsNullOrWhiteSpace(info.Name) ? "(not set)" : info.Name;
+            lblDetailIssuedValue.Text = info.IssuedOn.ToString("yyyy-MM-dd HH:mm") + " UTC";
+            lblDetailIssuerValue.Text = string.IsNullOrWhiteSpace(info.Issuer) ? "—" : info.Issuer;
+            lblDetailModeValue.Text = info.ValidationMode;
+            lblDetailTypeValue.Text = info.LicenseType;
+        }
+
+        private void ClearLicenseDetailsPanel()
+        {
+            lblDetailNameValue.Text = "—";
+            lblDetailIssuedValue.Text = "—";
+            lblDetailIssuerValue.Text = "—";
+            lblDetailModeValue.Text = "—";
+            lblDetailTypeValue.Text = "—";
+        }
+
         private static string GetDefaultAppVersionDisplay() =>
             SdkAssemblyInfo.GetSemanticVersionString(Assembly.GetExecutingAssembly());
 
@@ -497,10 +533,11 @@ namespace Licenses_Test_Winforms_App
             return string.IsNullOrEmpty(ui) ? "1.0.0" : ui;
         }
 
-        private void UpdateStatus(string message, Color color)
+        private void UpdateStatus(string message, Color color, string? detail = null)
         {
             lblStatus.Text = message;
             lblStatus.ForeColor = color;
+            lblStatusDetail.Text = detail ?? string.Empty;
             lblValidationTime.Text = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
         }
 
