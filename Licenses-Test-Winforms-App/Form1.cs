@@ -538,6 +538,7 @@ namespace Licenses_Test_Winforms_App
             lblStatus.Text = message;
             lblStatus.ForeColor = color;
             lblStatusDetail.Text = detail ?? string.Empty;
+            lblStatusDetail.MaximumSize = new Size(430, 0);
             lblValidationTime.Text = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
         }
 

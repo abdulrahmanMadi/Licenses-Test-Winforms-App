@@ -327,7 +327,9 @@ namespace Licenses_Test_Winforms_App
             lblStatusDetail.ForeColor = Color.FromArgb(75, 85, 99);
             lblStatusDetail.Location = new Point(15, 52);
             lblStatusDetail.Name = "lblStatusDetail";
-            lblStatusDetail.Size = new Size(430, 32);
+            lblStatusDetail.Size = new Size(430, 72);
+            lblStatusDetail.MaximumSize = new Size(430, 0);
+            lblStatusDetail.AutoSize = true;
             lblStatusDetail.TabIndex = 3;
             // 
             // lblStatus
