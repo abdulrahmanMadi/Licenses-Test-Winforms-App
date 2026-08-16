@@ -10,13 +10,12 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="LicenPro.SDK" Version="1.8.2" />
+    <PackageReference Include="LicenPro.SDK" Version="1.8.5" />
   </ItemGroup>
 
 
 
-	
-	             <ItemGroup>
+  <ItemGroup>
     <None Update="licenpro.settings.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
