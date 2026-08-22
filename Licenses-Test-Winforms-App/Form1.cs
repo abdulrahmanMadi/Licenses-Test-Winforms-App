@@ -194,7 +194,7 @@ namespace Licenses_Test_Winforms_App
                     var license = cacheResult.ValidationResult.License;
                     MessageBox.Show(
                         $"License Valid!\n\nType: {license.Type}\nKey: {license.LicenseKey}\nIssued: {license.IssuedOn:yyyy-MM-dd}" +
-                        (license.ExpirationDate.HasValue ? $"\nExpires: {license.ExpirationDate.Value:yyyy-MM-dd}" : ""),
+                        (license.ExpirationDate.HasValue ? $"\nExpires: {license.ExpirationDate.Value:yyyy-MM-dd HH:mm}" : ""),
                         "Valid", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
                     ShowSubscriptionExpiryAlertIfNeeded(cacheResult.ValidationResult, useMessageBox: true);
@@ -288,7 +288,7 @@ namespace Licenses_Test_Winforms_App
                 var license = r.ValidationResult.License;
                 MessageBox.Show(
                     $"Cached License Valid!\n\nType: {license.Type}\nKey: {license.LicenseKey}\nIssued: {license.IssuedOn:yyyy-MM-dd}" +
-                    (license.ExpirationDate.HasValue ? $"\nExpires: {license.ExpirationDate.Value:yyyy-MM-dd}" : ""),
+                    (license.ExpirationDate.HasValue ? $"\nExpires: {license.ExpirationDate.Value:yyyy-MM-dd HH:mm}" : ""),
                     "Valid (Cached)",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Information);
