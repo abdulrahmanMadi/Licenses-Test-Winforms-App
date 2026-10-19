@@ -10,7 +10,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="LicenPro.SDK" Version="1.8.7" />
+    <!-- In-repo SDK until 1.9 is published on NuGet (licenpro.cache, SessionConnectResult, Task<bool> DisconnectAsync). -->
+    <ProjectReference Include="..\..\LicenPro-2024\SDK\LicenPro.SDK.lib\LicenPro.SDK.csproj" />
   </ItemGroup>
 
 

@@ -48,9 +48,9 @@ namespace Licenses_Test_Winforms_App
             T(lblTitle,
                 "Sample LicenPro validator: load your binary license, public key, and license key, then validate online or from cache.");
             T(grpLicenseFile,
-                "Path to the encrypted license file (.bin) from the dashboard. If empty and cache exists, validation can use license.bin next to the app.");
+                "Path to the encrypted license file (.bin) downloaded from the dashboard. If empty and a cache exists, validation uses the SDK cache (licenpro.cache) next to the app.");
             T(lblLicenseFile, "Must match the file you downloaded for this license.");
-            T(txtLicenseFile, "Full path to license.bin (or Browse). Leave empty to use cached license.bin when validating.");
+            T(txtLicenseFile, "Full path to the downloaded license file, e.g. license.bin (or Browse). Leave empty to validate from the SDK cache (licenpro.cache).");
             T(btnBrowseLicense, "Pick a .bin license file from disk.");
 
             T(grpPublicKey,
@@ -92,13 +92,13 @@ namespace Licenses_Test_Winforms_App
             T(lblValidationTime, "Local time of the last status change.");
 
             T(btnClearCachedLicense,
-                "Deletes license.bin in the app folder. Next online validation will download/cache a fresh copy.");
+                "Deletes the SDK cache (licenpro.cache) in the app folder. Your downloaded license file is not touched. Next online validation caches a fresh copy.");
             T(btnValidate,
                 "Validates online: uploads license file, checks signature and server rules, activates session when applicable.");
             T(btnValidateOffline,
-                "Reads encrypted license.bin + keys from disk and validates using cached flow (requires prior online validate).");
+                "Reads the SDK cache (licenpro.cache) + keys from disk and validates using cached flow (requires prior online validate).");
             T(btnClear,
-                "Disposes the license client, clears inputs, resets app version to assembly default, and stops auto update checks.");
+                "Disconnects the session, disposes the license client, clears inputs, resets app version to assembly default, and stops auto update checks.");
 
             T(lblFeatures, "Feature flags enabled on the license after successful validation.");
             T(lstFeatures, "One line per feature from the validated license.");
@@ -153,13 +153,10 @@ namespace Licenses_Test_Winforms_App
                 return;
             }
 
-            // Use cached license if no file selected
+            // No file selected: validate from the SDK cache (LicenseCache.LicensePath). A selected file,
+            // including a vendor license.bin, is always validated online as a downloaded license file.
             var licensePath = txtLicenseFile.Text;
             if (string.IsNullOrWhiteSpace(licensePath) && LicenseCache.Exists())
-                licensePath = LicenseCache.LicensePath;
-
-            if (!string.IsNullOrWhiteSpace(licensePath) &&
-                Path.GetFileName(licensePath).Equals("license.bin", StringComparison.OrdinalIgnoreCase))
             {
                 await ValidateFromCacheAsync();
                 return;
@@ -199,18 +196,7 @@ namespace Licenses_Test_Winforms_App
 
                     ShowSubscriptionExpiryAlertIfNeeded(cacheResult.ValidationResult, useMessageBox: true);
 
-                    _ = Task.Run(async () =>
-                    {
-                        try
-                        {
-                            if (_licenseClient != null)
-                                await _licenseClient.ConnectSessionAsync();
-                        }
-                        catch
-                        {
-                            /* non-fatal */
-                        }
-                    });
+                    await ConnectSessionAndReportAsync();
                 }
                 else if (cacheResult.ValidationResult != null)
                 {
@@ -310,10 +296,48 @@ namespace Licenses_Test_Winforms_App
             pnlStatus.BackColor = Color.FromArgb(254, 226, 226);
         }
 
+        /// <summary>
+        /// Connects the license session and shows a failure in the status panel (the license itself stays valid).
+        /// </summary>
+        private async Task ConnectSessionAndReportAsync()
+        {
+            if (_licenseClient == null)
+                return;
+
+            SessionConnectResult result;
+            try
+            {
+                result = await _licenseClient.ConnectSessionAsync();
+            }
+            catch (Exception ex)
+            {
+                result = new SessionConnectResult { Success = false, Message = ex.Message };
+            }
+
+            if (result.Success)
+                return;
+
+            UpdateStatus("VALID — session not connected", Color.DarkOrange,
+                string.IsNullOrWhiteSpace(result.Message)
+                    ? "License is valid, but the session could not be connected."
+                    : $"License is valid, but the session could not be connected: {result.Message}");
+            pnlStatus.BackColor = Color.FromArgb(255, 247, 237);
+        }
+
         private async void btnClear_Click(object? sender, EventArgs e)
         {
+            var disconnectFailed = false;
             if (_licenseClient != null)
             {
+                try
+                {
+                    disconnectFailed = !await _licenseClient.DisconnectAsync();
+                }
+                catch
+                {
+                    disconnectFailed = true;
+                }
+
                 await _licenseClient.DisposeAsync();
                 _licenseClient = null;
             }
@@ -325,8 +349,17 @@ namespace Licenses_Test_Winforms_App
             txtLicenseKey.Text = "";
             txtAppVersion.Text = GetDefaultAppVersionDisplay();
             RefreshEffectiveUpdateVersionDisplay();
-            UpdateStatus("Not Validated", Color.Gray, null);
-            pnlStatus.BackColor = Color.FromArgb(243, 244, 246);
+            if (disconnectFailed)
+            {
+                UpdateStatus("Not Validated — disconnect failed", Color.OrangeRed,
+                    "The server did not confirm the session disconnect. The session may stay active until it times out.");
+                pnlStatus.BackColor = Color.FromArgb(254, 226, 226);
+            }
+            else
+            {
+                UpdateStatus("Not Validated", Color.Gray, null);
+                pnlStatus.BackColor = Color.FromArgb(243, 244, 246);
+            }
             lstFeatures.Items.Clear();
             ClearLicenseDetailsPanel();
         }

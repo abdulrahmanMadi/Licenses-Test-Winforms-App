@@ -109,7 +109,7 @@ namespace Licenses_Test_Winforms_App
             txtLicenseFile.Font = new Font("Segoe UI", 9F);
             txtLicenseFile.Location = new Point(15, 45);
             txtLicenseFile.Name = "txtLicenseFile";
-            txtLicenseFile.PlaceholderText = "C:\\path\\to\\license.bin";
+            txtLicenseFile.PlaceholderText = "C:\\path\\to\\license.bin (empty = use cache)";
             txtLicenseFile.Size = new Size(350, 23);
             txtLicenseFile.TabIndex = 0;
             // 
