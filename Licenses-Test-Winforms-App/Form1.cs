@@ -460,19 +460,45 @@ namespace Licenses_Test_Winforms_App
                 onUpdateAvailable: null);
         }
 
+        /// <summary>Outcome of the update attempt that restarted this process (set in Program.Main).</summary>
+        internal static LicenPro.SDK.Updates.UpdateRestartInfo? UpdateRestartInfo { get; set; }
+
+        private UpdatePromptForm? _updatePrompt;
+
+        /// <summary>One update window at a time; it downloads, verifies and installs on "Update & restart".</summary>
+        private void ShowUpdatePrompt(UpdateInfo info)
+        {
+            if (_updatePrompt is { IsDisposed: false })
+            {
+                _updatePrompt.Activate();
+                return;
+            }
+
+            _updatePrompt = new UpdatePromptForm(info);
+            _updatePrompt.FormClosed += (_, _) => _updatePrompt = null;
+            _updatePrompt.Show(this);
+        }
+
+        protected override void OnShown(EventArgs e)
+        {
+            base.OnShown(e);
+            if (UpdateRestartInfo is { } restart)
+            {
+                UpdateRestartInfo = null;
+                if (restart.Succeeded)
+                    MessageBox.Show($"Updated from version {restart.FromVersion}.", "Update installed", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                else
+                    MessageBox.Show($"The update was not installed; the previous version is running.\n\n{restart.Error}",
+                        "Update failed", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        }
+
         private void OnSdkProductUpdateAvailable(object? sender, UpdateAvailableEventArgs e)
         {
-            if (!chkAutoCheckProductUpdates.Checked)
+            if (!chkAutoCheckProductUpdates.Checked || e.Update == null)
                 return;
 
-            void Show()
-            {
-                MessageBox.Show(
-                    $"An update is available: {e.NewVersion}\n\nUse \"Check for updates\" for details and download options.",
-                    "Product update",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Information);
-            }
+            void Show() => ShowUpdatePrompt(e.Update);
 
             if (InvokeRequired)
                 BeginInvoke(Show);
@@ -578,7 +604,7 @@ namespace Licenses_Test_Winforms_App
         /// <summary>
         /// Dashboard release notes are often HTML (rich editor). MessageBox only shows plain text.
         /// </summary>
-        private static string PlainTextFromHtmlChangelog(string? html)
+        internal static string PlainTextFromHtmlChangelog(string? html)
         {
             if (string.IsNullOrWhiteSpace(html))
                 return string.Empty;
@@ -721,15 +747,7 @@ namespace Licenses_Test_Winforms_App
                 }
                 else
                 {
-                    var plainNotes = PlainTextFromHtmlChangelog(info.Changelog);
-                    var notes = string.IsNullOrWhiteSpace(plainNotes)
-                        ? ""
-                        : "\n\nWhat's new:\n" + plainNotes;
-                    MessageBox.Show(
-                        $"Version {info.Version} is available for this license.{notes}",
-                        "Update available",
-                        MessageBoxButtons.OK,
-                        MessageBoxIcon.Information);
+                    ShowUpdatePrompt(info);
                 }
             }
             catch (InvalidOperationException ex)
