@@ -64,19 +64,18 @@ namespace Licenses_Test_Winforms_App
             T(txtLicenseKey, "Enter the full license key. Cached credentials may pre-fill this field.");
 
             T(grpUpdates,
-                "Dashboard compares your current build (X-Current-Version) to releases you are allowed to use. " +
-                "If the license file includes an assigned release version, that value is used automatically; otherwise the editable field is used.");
+                "Dashboard compares the build you are running (X-Current-Version) to releases you are allowed to use. " +
+                "The release named in the license file is shown for information only: after an update the running build is newer.");
             T(lblUpdAppVer,
-                "Product / app version string. After validation, this may auto-fill from the license’s assigned release when embedded in the file.");
+                "Version this app reports for update checks. Defaults to the running build.");
             T(txtAppVersion,
-                "Semantic version of the build you are running (e.g. 1.0.0). Used for update checks when the license has no embedded release version.");
+                "The running build's version (e.g. 1.0.0). Change it only to test update offers; an empty field reports the running build.");
             T(lblUpdProductId,
                 "Product GUID from the dashboard. Optional if your license type embeds product scope; required for some perpetual licenses.");
             T(txtProductId,
                 "Paste the product Id (GUID) from Product Settings. Sent as X-Product-Id on update checks when set.");
             T(lblEffectiveUpdateVersion,
-                "Read-only: the exact version string sent to the server as X-Current-Version. " +
-                "Priority: (1) release version embedded in the validated license, (2) the editable field, (3) 1.0.0 if empty.");
+                "Read-only: the exact version string sent to the server as X-Current-Version (the running build, or the test override above).");
             T(chkAutoCheckProductUpdates,
                 "When enabled and the license is valid, the SDK asks the server periodically (24h) whether a newer allowed release exists.");
             T(btnCheckUpdates,
@@ -113,10 +112,10 @@ namespace Licenses_Test_Winforms_App
         private void RefreshEffectiveUpdateVersionDisplay()
         {
             var v = GetProductVersionForUpdateChecks();
-            var fromLicense = !string.IsNullOrWhiteSpace(_licenseClient?.License?.AssignedReleaseVersion);
-            var source = fromLicense
-                ? "assigned release embedded in license file"
-                : "editable app version field (or default 1.0.0 if empty)";
+            var source = v == SdkUpdateManager.RunningVersion ? "running build" : "test override";
+            var licensed = _licenseClient?.License?.AssignedReleaseVersion;
+            if (!string.IsNullOrWhiteSpace(licensed))
+                source += $" · license file names release {licensed.Trim()}";
             lblEffectiveUpdateVersion.Text =
                 $"Effective version for update check (X-Current-Version): {v}{Environment.NewLine}Source: {source}";
         }
@@ -435,7 +434,6 @@ namespace Licenses_Test_Winforms_App
             if (_licenseClient != null)
                 await _licenseClient.DisposeAsync();
             _licenseClient = newClient;
-            SyncAppVersionFieldFromValidatedLicense(newClient?.License);
             RefreshEffectiveUpdateVersionDisplay();
             RefreshLicenseDetailsPanel();
             ApplyPeriodicProductUpdateCheck();
@@ -464,19 +462,51 @@ namespace Licenses_Test_Winforms_App
         internal static LicenPro.SDK.Updates.UpdateRestartInfo? UpdateRestartInfo { get; set; }
 
         private UpdatePromptForm? _updatePrompt;
+        private bool _exitingForMandatoryUpdate;
 
-        /// <summary>One update window at a time; it downloads, verifies and installs on "Update & restart".</summary>
+        /// <summary>
+        /// One update window at a time; it downloads, verifies and installs on "Update & restart". A newer offer (another
+        /// version, or the same one now mandatory) replaces an idle window. A mandatory update opens modal and cannot be
+        /// dismissed (owner decision 2026-10-30).
+        /// </summary>
         private void ShowUpdatePrompt(UpdateInfo info)
         {
-            if (_updatePrompt is { IsDisposed: false })
-            {
-                _updatePrompt.Activate();
+            // The event and the "Check for updates" button can both ask for the window; none once the app is quitting.
+            if (_exitingForMandatoryUpdate)
                 return;
+
+            if (_updatePrompt is { IsDisposed: false } open)
+            {
+                if (open.ShowsSameOffer(info) || open.IsBusy)
+                {
+                    open.Activate();
+                    return;
+                }
+                open.CloseForNewerOffer();
             }
 
-            _updatePrompt = new UpdatePromptForm(info);
-            _updatePrompt.FormClosed += (_, _) => _updatePrompt = null;
-            _updatePrompt.Show(this);
+            var prompt = new UpdatePromptForm(info);
+            _updatePrompt = prompt;
+            prompt.FormClosed += (_, _) =>
+            {
+                if (ReferenceEquals(_updatePrompt, prompt))
+                    _updatePrompt = null;
+            };
+            if (info.IsMandatory)
+            {
+                prompt.ShowDialog(this);
+                // A mandatory prompt only closes to install, for a newer offer, or because something outside ended it
+                // (Task Manager): then the app quits too, and the downloaded update installs at the next start.
+                if (!prompt.Installing && !prompt.Replaced)
+                {
+                    _exitingForMandatoryUpdate = true;
+                    Application.Exit();
+                }
+            }
+            else
+            {
+                prompt.Show(this);
+            }
         }
 
         protected override void OnShown(EventArgs e)
@@ -486,7 +516,11 @@ namespace Licenses_Test_Winforms_App
             {
                 UpdateRestartInfo = null;
                 if (restart.Succeeded)
-                    MessageBox.Show($"Updated from version {restart.FromVersion}.", "Update installed", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                {
+                    var from = Version.TryParse(restart.FromVersion, out var parsed) ? parsed.ToString(3) : restart.FromVersion;
+                    MessageBox.Show($"Updated from version {from} to {SdkUpdateManager.RunningVersion}.", "Update installed",
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
                 else
                     MessageBox.Show($"The update was not installed; the previous version is running.\n\n{restart.Error}",
                         "Update failed", MessageBoxButtons.OK, MessageBoxIcon.Warning);
@@ -498,12 +532,9 @@ namespace Licenses_Test_Winforms_App
             if (!chkAutoCheckProductUpdates.Checked || e.Update == null)
                 return;
 
-            void Show() => ShowUpdatePrompt(e.Update);
-
-            if (InvokeRequired)
-                BeginInvoke(Show);
-            else
-                Show();
+            // Always deferred: a mandatory prompt is modal, and showing it inside the event would block the SDK's
+            // update check (and whatever follows it) until the window closes.
+            BeginInvoke(() => ShowUpdatePrompt(e.Update));
         }
 
         private void ApplyValidationFailureFeedback(LicenseValidationResult result)
@@ -573,23 +604,17 @@ namespace Licenses_Test_Winforms_App
             lblDetailTypeValue.Text = "—";
         }
 
-        private static string GetDefaultAppVersionDisplay() =>
-            SdkAssemblyInfo.GetSemanticVersionString(Assembly.GetExecutingAssembly());
+        private static string GetDefaultAppVersionDisplay() => SdkUpdateManager.RunningVersion;
 
-        /// <summary>Prefer release version embedded in the validated license over the sample app's assembly version.</summary>
-        private void SyncAppVersionFieldFromValidatedLicense(BaseLicense? license)
-        {
-            if (!string.IsNullOrWhiteSpace(license?.AssignedReleaseVersion))
-                txtAppVersion.Text = license.AssignedReleaseVersion.Trim();
-        }
-
-        /// <summary>Version sent as X-Current-Version: license assignment wins so update checks match dashboard release.</summary>
+        /// <summary>
+        /// Version sent as X-Current-Version: the running build (the field defaults to it; edit it only to test).
+        /// The release named in the license file is not used: after a one-click update the running build is newer,
+        /// and reporting the licensed release would offer the same update again on every start (BUG-40).
+        /// </summary>
         private string GetProductVersionForUpdateChecks()
         {
-            if (!string.IsNullOrWhiteSpace(_licenseClient?.License?.AssignedReleaseVersion))
-                return _licenseClient.License.AssignedReleaseVersion.Trim();
             var ui = txtAppVersion.Text.Trim();
-            return string.IsNullOrEmpty(ui) ? "1.0.0" : ui;
+            return string.IsNullOrEmpty(ui) ? SdkUpdateManager.RunningVersion : ui;
         }
 
         private void UpdateStatus(string message, Color color, string? detail = null)
