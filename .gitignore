@@ -361,3 +361,6 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+# Local SDK settings hold the API key: never commit them (BUG-45).
+# Copy Licenses-Test-Winforms-App/licenpro.settings.example.json to licenpro.settings.json and fill it in.
+licenpro.settings.json

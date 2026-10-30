@@ -1,0 +1,8 @@
+{
+  "ServerBaseEndpoint": "https://licenpro.runasp.net/api",
+  "LicensingSecrets": {
+    "ApiKey": "YOUR_API_KEY (Dashboard > Account Settings > API keys)",
+    "PublicKey": "YOUR_PRODUCT_PUBLIC_KEY (Base64, Dashboard > Product > Settings)"
+  },
+  "AutoCheckProductUpdates": true
+}
