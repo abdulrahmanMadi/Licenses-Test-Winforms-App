@@ -22,4 +22,12 @@
     </None>
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- The product public key is built into the app (BUG-12); customers enter only their license key. Copy
+         LicenPro.PublicKey.example.txt to LicenPro.PublicKey.txt (git-ignored, so no key is committed) and paste the key
+         from Dashboard > Product > Settings > RSA keys > Build into your app. The SDK reads this embedded resource
+         when LicenseClientOptions.PublicKey is empty. -->
+    <EmbeddedResource Include="LicenPro.PublicKey.txt" LogicalName="LicenPro.PublicKey.txt" Condition="Exists('LicenPro.PublicKey.txt')" />
+  </ItemGroup>
+
 </Project>

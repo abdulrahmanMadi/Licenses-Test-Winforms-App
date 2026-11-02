@@ -1,0 +1,10 @@
+# The product public key this sample app is built with (BUG-12). Customers never enter it; they enter only their
+# license key.
+#
+# 1. Copy this file to LicenPro.PublicKey.txt in the same folder (that name is git-ignored, so no key is committed).
+# 2. Replace the line below with your product's key: Dashboard > Product > Settings > RSA keys > Build into your app.
+#    To test licenses of several products with one build, put one key per line.
+# 3. Rebuild. The project embeds the file and the SDK reads it when LicenseClientOptions.PublicKey is empty.
+#
+# Lines starting with # are comments.
+PASTE_YOUR_PRODUCT_PUBLIC_KEY_HERE

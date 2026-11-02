@@ -24,8 +24,6 @@ namespace Licenses_Test_Winforms_App
             txtLicenseFile = new TextBox();
             lblLicenseFile = new Label();
             grpPublicKey = new GroupBox();
-            btnBrowsePublicKey = new Button();
-            txtPublicKey = new TextBox();
             lblPublicKey = new Label();
             grpCredentials = new GroupBox();
             txtLicenseKey = new TextBox();
@@ -125,8 +123,6 @@ namespace Licenses_Test_Winforms_App
             // 
             // grpPublicKey
             // 
-            grpPublicKey.Controls.Add(btnBrowsePublicKey);
-            grpPublicKey.Controls.Add(txtPublicKey);
             grpPublicKey.Controls.Add(lblPublicKey);
             grpPublicKey.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
             grpPublicKey.Location = new Point(20, 145);
@@ -134,38 +130,16 @@ namespace Licenses_Test_Winforms_App
             grpPublicKey.Size = new Size(460, 122);
             grpPublicKey.TabIndex = 1;
             grpPublicKey.TabStop = false;
-            grpPublicKey.Text = "Public Key";
-            // 
-            // btnBrowsePublicKey
-            // 
-            btnBrowsePublicKey.Font = new Font("Segoe UI", 9F);
-            btnBrowsePublicKey.Location = new Point(375, 44);
-            btnBrowsePublicKey.Name = "btnBrowsePublicKey";
-            btnBrowsePublicKey.Size = new Size(70, 25);
-            btnBrowsePublicKey.TabIndex = 3;
-            btnBrowsePublicKey.Text = "Load...";
-            btnBrowsePublicKey.Click += btnBrowsePublicKey_Click;
-            // 
-            // txtPublicKey
-            // 
-            txtPublicKey.Font = new Font("Consolas", 8F);
-            txtPublicKey.Location = new Point(15, 45);
-            txtPublicKey.Multiline = true;
-            txtPublicKey.Name = "txtPublicKey";
-            txtPublicKey.PlaceholderText = "MIIBCgKCAQEA...";
-            txtPublicKey.ScrollBars = ScrollBars.Vertical;
-            txtPublicKey.Size = new Size(350, 60);
-            txtPublicKey.TabIndex = 2;
-            // 
+            grpPublicKey.Text = "Product Public Key (built into this app)";
+            //
             // lblPublicKey
-            // 
-            lblPublicKey.AutoSize = true;
+            //
             lblPublicKey.Font = new Font("Segoe UI", 9F);
             lblPublicKey.Location = new Point(15, 25);
             lblPublicKey.Name = "lblPublicKey";
-            lblPublicKey.Size = new Size(185, 15);
+            lblPublicKey.Size = new Size(430, 88);
             lblPublicKey.TabIndex = 4;
-            lblPublicKey.Text = "RSA Public Key (Base64 encoded):";
+            lblPublicKey.Text = "Checking the built-in key...";
             // 
             // grpCredentials
             // 
@@ -611,8 +585,6 @@ namespace Licenses_Test_Winforms_App
         private TextBox txtLicenseFile;
         private Label lblLicenseFile;
         private GroupBox grpPublicKey;
-        private Button btnBrowsePublicKey;
-        private TextBox txtPublicKey;
         private Label lblPublicKey;
         private GroupBox grpCredentials;
         private TextBox txtLicenseKey;

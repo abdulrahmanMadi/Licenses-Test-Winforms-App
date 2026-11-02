@@ -32,6 +32,7 @@ namespace Licenses_Test_Winforms_App
             txtAppVersion.TextChanged += (_, _) => RefreshEffectiveUpdateVersionDisplay();
             SdkUpdateManager.UpdateAvailable += OnSdkProductUpdateAvailable;
             SetupFormTooltips();
+            ShowBuiltInPublicKey();
             RefreshEffectiveUpdateVersionDisplay();
             Shown += async (_, __) => await RunStartupLicenseCheckAsync();
             FormClosing += async (_, __) =>
@@ -46,7 +47,7 @@ namespace Licenses_Test_Winforms_App
             void T(Control c, string text) => toolTipUi.SetToolTip(c, text);
 
             T(lblTitle,
-                "Sample LicenPro validator: load your binary license, public key, and license key, then validate online or from cache.");
+                "Sample LicenPro validator: load your binary license and license key, then validate online or from cache.");
             T(grpLicenseFile,
                 "Path to the encrypted license file (.bin) downloaded from the dashboard. If empty and a cache exists, validation uses the SDK cache (licenpro.cache) next to the app.");
             T(lblLicenseFile, "Must match the file you downloaded for this license.");
@@ -54,10 +55,10 @@ namespace Licenses_Test_Winforms_App
             T(btnBrowseLicense, "Pick a .bin license file from disk.");
 
             T(grpPublicKey,
-                "RSA public key for the product that signed the license. Copy from Dashboard → Product → Settings (Base64, no PEM headers).");
-            T(lblPublicKey, "Must be the key pair that signed this license file.");
-            T(txtPublicKey, "Paste Base64 public key or use Load to read a .pem/.txt file (headers stripped automatically).");
-            T(btnBrowsePublicKey, "Load public key from a PEM or text file.");
+                "The product public key is built into the app by its developer; the customer never enters it. " +
+                "This sample embeds LicenPro.PublicKey.txt (git-ignored; copy LicenPro.PublicKey.example.txt) at build time.");
+            T(lblPublicKey,
+                "Get the key from Dashboard → Product → Settings → RSA keys → Build into your app. One key per line to test several products.");
 
             T(grpCredentials, "The license key string exactly as shown in the dashboard (used with the file for online validation).");
             T(lblLicenseKey, "Same key you copy from the license record; required for online validation and cache unlock.");
@@ -132,17 +133,55 @@ namespace Licenses_Test_Winforms_App
                 txtLicenseFile.Text = dlg.FileName;
         }
 
-        private void btnBrowsePublicKey_Click(object? sender, EventArgs e)
+        /// <summary>
+        /// Shows which product key this build carries. The SDK reads the same embedded resource itself when
+        /// LicenseClientOptions.PublicKey is empty; nothing here is passed to it.
+        /// </summary>
+        private void ShowBuiltInPublicKey()
         {
-            var dlg = new OpenFileDialog
+            string? text = null;
+            using (var stream = typeof(Form1).Assembly.GetManifestResourceStream(BuiltInKeyResource))
             {
-                Filter = "Key Files (*.pem;*.key;*.txt)|*.pem;*.key;*.txt|All Files (*.*)|*.*",
-                Title = "Select Public Key",
-                RestoreDirectory = true
-            };
-            if (dlg.ShowDialog(this) == DialogResult.OK)
-                txtPublicKey.Text = SecurityUtils.StripPemHeaders(File.ReadAllText(dlg.FileName));
+                if (stream != null)
+                    text = new StreamReader(stream).ReadToEnd();
+            }
+
+            var keys = (text ?? string.Empty)
+                .Split('\n')
+                .Select(line => line.Trim())
+                .Where(line => line.Length > 0 && !line.StartsWith('#'))
+                .ToList();
+
+            if (keys.Count == 0)
+            {
+                lblPublicKey.ForeColor = Color.Firebrick;
+                lblPublicKey.Text =
+                    "No product public key is built into this build, so licenses cannot be validated.\n" +
+                    "Copy LicenPro.PublicKey.example.txt to LicenPro.PublicKey.txt, paste the key from " +
+                    "Dashboard → Product → Settings → RSA keys → Build into your app, and rebuild.";
+                return;
+            }
+
+            var fingerprints = keys.Select(key =>
+            {
+                try
+                {
+                    var hash = System.Security.Cryptography.SHA256.HashData(Convert.FromBase64String(key));
+                    return BitConverter.ToString(hash, 0, 8).Replace('-', ':') + "…";
+                }
+                catch (FormatException)
+                {
+                    return "not a Base64 key";
+                }
+            });
+
+            lblPublicKey.ForeColor = SystemColors.ControlText;
+            lblPublicKey.Text =
+                $"{keys.Count} key(s) built in from LicenPro.PublicKey.txt. SHA-256: {string.Join(", ", fingerprints)}\n" +
+                "Customers enter only their license key. Compare the fingerprint with the dashboard's RSA keys panel.";
         }
+
+        private const string BuiltInKeyResource = "LicenPro.PublicKey.txt";
 
         private async void btnValidate_Click(object? sender, EventArgs e)
         {
@@ -172,9 +211,10 @@ namespace Licenses_Test_Winforms_App
             try
             {
                 var productId = string.IsNullOrWhiteSpace(txtProductId.Text) ? null : txtProductId.Text.Trim();
+                // No public key argument: the SDK uses the key built into this app (embedded LicenPro.PublicKey.txt).
                 var cacheResult = await LicenseClient.ValidateAndCacheAsync(
                     licensePath,
-                    txtPublicKey.Text,
+                    publicKey: null,
                     txtLicenseKey.Text,
                     expectedLicenseType: null,
                     productId: productId);
@@ -235,8 +275,7 @@ namespace Licenses_Test_Winforms_App
             UpdateStatus("Validating from cache...", Color.DodgerBlue);
 
             var r = await LicenseClient.TryAutoValidateAsync(
-                string.IsNullOrWhiteSpace(txtLicenseKey.Text) ? null : txtLicenseKey.Text,
-                string.IsNullOrWhiteSpace(txtPublicKey.Text) ? null : txtPublicKey.Text);
+                string.IsNullOrWhiteSpace(txtLicenseKey.Text) ? null : txtLicenseKey.Text);
 
             ApplyCacheCredentialHints(r);
 
@@ -290,7 +329,7 @@ namespace Licenses_Test_Winforms_App
 
             UpdateStatus("INVALID", Color.Red,
                 string.IsNullOrWhiteSpace(r.Message)
-                    ? "Cached validation failed. Please confirm the License Key and Public Key are correct."
+                    ? "Cached validation failed. Please confirm the License Key is correct, or validate your license file again."
                     : r.Message);
             pnlStatus.BackColor = Color.FromArgb(254, 226, 226);
         }
@@ -344,7 +383,6 @@ namespace Licenses_Test_Winforms_App
             SdkUpdateManager.DisableAutoCheck();
 
             txtLicenseFile.Text = "";
-            txtPublicKey.Text = "";
             txtLicenseKey.Text = "";
             txtAppVersion.Text = GetDefaultAppVersionDisplay();
             RefreshEffectiveUpdateVersionDisplay();
@@ -378,8 +416,7 @@ namespace Licenses_Test_Winforms_App
             UpdateStatus("Auto validating...", Color.DodgerBlue);
 
             var r = await LicenseClient.TryAutoValidateAsync(
-                string.IsNullOrWhiteSpace(txtLicenseKey.Text) ? null : txtLicenseKey.Text,
-                string.IsNullOrWhiteSpace(txtPublicKey.Text) ? null : txtPublicKey.Text);
+                string.IsNullOrWhiteSpace(txtLicenseKey.Text) ? null : txtLicenseKey.Text);
 
             ApplyCacheCredentialHints(r);
 
@@ -423,10 +460,9 @@ namespace Licenses_Test_Winforms_App
 
         private void ApplyCacheCredentialHints(CacheValidationResult r)
         {
+            // Only the license key: the public key is built into the app and never taken from the cache.
             if (!string.IsNullOrEmpty(r.CachedLicenseKey) && string.IsNullOrWhiteSpace(txtLicenseKey.Text))
                 txtLicenseKey.Text = r.CachedLicenseKey;
-            if (!string.IsNullOrEmpty(r.CachedPublicKey) && string.IsNullOrWhiteSpace(txtPublicKey.Text))
-                txtPublicKey.Text = r.CachedPublicKey;
         }
 
         private async Task ReplaceLicenseClientAsync(LicenseClient? newClient)
