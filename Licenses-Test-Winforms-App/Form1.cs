@@ -31,15 +31,136 @@ namespace Licenses_Test_Winforms_App
             };
             txtAppVersion.TextChanged += (_, _) => RefreshEffectiveUpdateVersionDisplay();
             SdkUpdateManager.UpdateAvailable += OnSdkProductUpdateAvailable;
+            SessionManager.HeartbeatSent += OnHeartbeatSent;
             SetupFormTooltips();
             ShowBuiltInPublicKey();
             RefreshEffectiveUpdateVersionDisplay();
             Shown += async (_, __) => await RunStartupLicenseCheckAsync();
             FormClosing += async (_, __) =>
             {
+                SessionManager.HeartbeatSent -= OnHeartbeatSent;
                 if (_licenseClient != null)
+                {
+                    _licenseClient.SessionDisconnected -= OnSessionDisconnected;
                     await _licenseClient.DisposeAsync();
+                }
             };
+        }
+
+        /// <summary>Set while the server cannot be reached or the session is being restored; cleared by the next good heartbeat.</summary>
+        private bool _sessionInterrupted;
+
+        /// <summary>
+        /// The SDK reports a lost session. When the server withdrew the license (revoked, expired, device blocked or
+        /// deactivated, Floating seat ended) the SDK has already unloaded it, so the app stops using its features;
+        /// otherwise the license stays loaded and the SDK keeps retrying (production review 2026-11-07, CP-6, LD-3, LD-8).
+        /// </summary>
+        private void OnSessionDisconnected(object? sender, string message)
+        {
+            if (!ReferenceEquals(sender, _licenseClient))
+                return;
+
+            if (_licenseClient?.License == null)
+            {
+                ShowLicenseWithdrawn(message);
+                return;
+            }
+
+            if (message.Contains("ended from the LicenPro dashboard", StringComparison.OrdinalIgnoreCase))
+            {
+                // A device-based license keeps its activation; the SDK reconnects when the user validates again.
+                UpdateStatus("SESSION ENDED", Color.DarkOrange, message);
+                pnlStatus.BackColor = Color.FromArgb(255, 247, 237);
+                return;
+            }
+
+            _sessionInterrupted = true;
+            UpdateStatus("VALID — offline, retrying", Color.DarkOrange, message);
+            pnlStatus.BackColor = Color.FromArgb(255, 247, 237);
+        }
+
+        private void OnHeartbeatSent(object? sender, HeartbeatEventArgs e)
+        {
+            if (InvokeRequired)
+            {
+                BeginInvoke(() => OnHeartbeatSent(sender, e));
+                return;
+            }
+
+            if (!e.Success || !_sessionInterrupted || _licenseClient?.License == null)
+                return;
+
+            _sessionInterrupted = false;
+            UpdateStatus("VALID — back online", Color.Green, "The licensing server answers again and the session is connected.");
+            pnlStatus.BackColor = Color.FromArgb(220, 252, 231);
+        }
+
+        /// <summary>The server no longer lets this device use the license: say why and stop showing licensed features.</summary>
+        private void ShowLicenseWithdrawn(string? message)
+        {
+            _sessionInterrupted = false;
+            UpdateStatus(LicenseRefusalLabel(message), Color.DarkRed, FriendlyLicenseMessage(message));
+            pnlStatus.BackColor = Color.FromArgb(254, 202, 202);
+            lstFeatures.Items.Clear();
+            ClearLicenseDetailsPanel();
+            SdkUpdateManager.DisableAutoCheck();
+        }
+
+        /// <summary>
+        /// Plain text for the status codes the SDK passes through as the error message (CP-7). LicenPro's own
+        /// sentences are shown as they are.
+        /// </summary>
+        internal static string FriendlyLicenseMessage(string? message)
+        {
+            if (string.IsNullOrWhiteSpace(message))
+                return "The license could not be validated.";
+
+            return message.Trim() switch
+            {
+                "MaxActivationsReached" =>
+                    "This license is already active on the maximum number of devices. Deactivate it on another device, or ask your vendor to free a slot, then try again.",
+                "MaxConcurrentSessionsReached" =>
+                    "All seats of this license are in use. Close the app on another device and try again.",
+                "DeviceBlocked" => "This device was blocked from using this license. Contact your vendor.",
+                "DeviceDeactivated" =>
+                    "This device was deactivated for this license. Validate again to activate it, or contact your vendor.",
+                "HardwareMismatch" => "This license is bound to a different device.",
+                "CredentialMismatch" => "This license is assigned to a different user.",
+                "LicenseExpired" => "This license has expired. Contact your vendor to renew it.",
+                "LicenseRevoked" or "Revoked" => "This license has been revoked. Contact your vendor.",
+                "BindingPending" => "This device is waiting for your vendor's approval.",
+                _ => message.Trim()
+            };
+        }
+
+        /// <summary>Short status label for a refusal, from LicenPro's code or sentence.</summary>
+        internal static string LicenseRefusalLabel(string? message)
+        {
+            var m = message ?? string.Empty;
+            if (m.Contains("blocked", StringComparison.OrdinalIgnoreCase)) return "BLOCKED";
+            if (m.Contains("deactivated", StringComparison.OrdinalIgnoreCase)) return "DEACTIVATED";
+            if (m.Contains("revoked", StringComparison.OrdinalIgnoreCase)) return "REVOKED";
+            if (m.Contains("expired", StringComparison.OrdinalIgnoreCase)) return "EXPIRED";
+            if (m.Contains("ended from the LicenPro dashboard", StringComparison.OrdinalIgnoreCase)) return "SESSION ENDED";
+            return "INVALID";
+        }
+
+        /// <summary>
+        /// A session connect the server refused because of the license or this device, as opposed to a network
+        /// failure: LicenPro's refusal sentences and status codes.
+        /// </summary>
+        internal static bool IsLicenseRefusal(string? message)
+        {
+            if (string.IsNullOrWhiteSpace(message))
+                return false;
+
+            string[] refusals =
+            {
+                "not active", "revoked", "blocked", "deactivated", "expired", "maximum number of activations",
+                "MaxActivationsReached", "seats for this license are in use", "MaxConcurrentSessionsReached",
+                "different device", "different user", "No license was found", "pending approval", "BindingPending"
+            };
+            return refusals.Any(r => message.Contains(r, StringComparison.OrdinalIgnoreCase));
         }
 
         private void SetupFormTooltips()
@@ -178,7 +299,8 @@ namespace Licenses_Test_Winforms_App
             lblPublicKey.ForeColor = SystemColors.ControlText;
             lblPublicKey.Text =
                 $"{keys.Count} key(s) built in from LicenPro.PublicKey.txt. SHA-256: {string.Join(", ", fingerprints)}\n" +
-                "Customers enter only their license key. Compare the fingerprint with the dashboard's RSA keys panel.";
+                "Customers never enter a public key: the first time they choose the license file they downloaded from the customer portal and type their license key. " +
+                "Compare the fingerprint with the dashboard's RSA keys panel.";
         }
 
         private const string BuiltInKeyResource = "LicenPro.PublicKey.txt";
@@ -202,7 +324,10 @@ namespace Licenses_Test_Winforms_App
 
             if (string.IsNullOrWhiteSpace(licensePath) || !File.Exists(licensePath))
             {
-                MessageBox.Show("Please select a license file.", "Required", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show(
+                    "Choose the license file (.bin) you downloaded from the customer portal (My Licenses → Download License File). " +
+                    "It is needed only the first time; after that the app validates from its cache.",
+                    "License file required", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
@@ -355,6 +480,15 @@ namespace Licenses_Test_Winforms_App
             if (result.Success)
                 return;
 
+            // The license changed between the validation and the connect (revoked, device blocked or deactivated,
+            // no free slot): this device may not use it, so the status must not say VALID (production review LD-8).
+            if (IsLicenseRefusal(result.Message))
+            {
+                ShowLicenseWithdrawn(result.Message);
+                await ReplaceLicenseClientAsync(null);
+                return;
+            }
+
             UpdateStatus("VALID — session not connected", Color.DarkOrange,
                 string.IsNullOrWhiteSpace(result.Message)
                     ? "License is valid, but the session could not be connected."
@@ -376,10 +510,12 @@ namespace Licenses_Test_Winforms_App
                     disconnectFailed = true;
                 }
 
+                _licenseClient.SessionDisconnected -= OnSessionDisconnected;
                 await _licenseClient.DisposeAsync();
                 _licenseClient = null;
             }
 
+            _sessionInterrupted = false;
             SdkUpdateManager.DisableAutoCheck();
 
             txtLicenseFile.Text = "";
@@ -468,8 +604,14 @@ namespace Licenses_Test_Winforms_App
         private async Task ReplaceLicenseClientAsync(LicenseClient? newClient)
         {
             if (_licenseClient != null)
+            {
+                _licenseClient.SessionDisconnected -= OnSessionDisconnected;
                 await _licenseClient.DisposeAsync();
+            }
             _licenseClient = newClient;
+            if (_licenseClient != null)
+                _licenseClient.SessionDisconnected += OnSessionDisconnected;
+            _sessionInterrupted = false;
             RefreshEffectiveUpdateVersionDisplay();
             RefreshLicenseDetailsPanel();
             ApplyPeriodicProductUpdateCheck();
@@ -579,6 +721,7 @@ namespace Licenses_Test_Winforms_App
             var detail = string.IsNullOrWhiteSpace(result.ErrorMessage) ? f.DialogTitle : result.ErrorMessage;
             if (detail.Equals("Success", StringComparison.OrdinalIgnoreCase))
                 detail = "License not found.";
+            detail = FriendlyLicenseMessage(detail);
 
             UpdateStatus(f.StatusLabel, Color.FromArgb(f.StatusTextColorArgb), detail);
             pnlStatus.BackColor = Color.FromArgb(f.PanelBackgroundArgb);
