@@ -307,6 +307,24 @@ namespace Licenses_Test_Winforms_App
 
         private async void btnValidate_Click(object? sender, EventArgs e)
         {
+            // One validation at a time: a second click while the first runs started a second flow with its own
+            // popups (production review SB-1).
+            if (!btnValidate.Enabled)
+                return;
+
+            btnValidate.Enabled = false;
+            try
+            {
+                await ValidateFromInputsAsync();
+            }
+            finally
+            {
+                btnValidate.Enabled = true;
+            }
+        }
+
+        private async Task ValidateFromInputsAsync()
+        {
             if (string.IsNullOrWhiteSpace(txtLicenseKey.Text))
             {
                 MessageBox.Show("Please enter your License Key.", "Required", MessageBoxButtons.OK, MessageBoxIcon.Warning);
@@ -349,6 +367,12 @@ namespace Licenses_Test_Winforms_App
                     await ReplaceLicenseClientAsync(cacheResult.Client);
                     UpdateStatus("VALID", Color.Green, "License validated successfully.");
                     pnlStatus.BackColor = Color.FromArgb(220, 252, 231);
+
+                    // The server answers the session before the app says "valid": a license it refuses (revoked,
+                    // suspended, no free seat) shows only the refusal, never "License Valid!" first (OF-4).
+                    if (!await ConnectSessionAndReportAsync())
+                        return;
+
                     RefreshFeaturesList();
                     RefreshLicenseDetailsPanel();
 
@@ -359,8 +383,6 @@ namespace Licenses_Test_Winforms_App
                         "Valid", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
                     ShowSubscriptionExpiryAlertIfNeeded(cacheResult.ValidationResult, useMessageBox: true);
-
-                    await ConnectSessionAndReportAsync();
                 }
                 else if (cacheResult.ValidationResult != null)
                 {
@@ -460,12 +482,13 @@ namespace Licenses_Test_Winforms_App
         }
 
         /// <summary>
-        /// Connects the license session and shows a failure in the status panel (the license itself stays valid).
+        /// Connects the license session. Returns false when the server refused the license (it is then shown as
+        /// withdrawn and unloaded); true when the session connected, or failed for another reason (shown in the status).
         /// </summary>
-        private async Task ConnectSessionAndReportAsync()
+        private async Task<bool> ConnectSessionAndReportAsync()
         {
             if (_licenseClient == null)
-                return;
+                return false;
 
             SessionConnectResult result;
             try
@@ -478,7 +501,7 @@ namespace Licenses_Test_Winforms_App
             }
 
             if (result.Success)
-                return;
+                return true;
 
             // The license changed between the validation and the connect (revoked, device blocked or deactivated,
             // no free slot): this device may not use it, so the status must not say VALID (production review LD-8).
@@ -486,7 +509,7 @@ namespace Licenses_Test_Winforms_App
             {
                 ShowLicenseWithdrawn(result.Message);
                 await ReplaceLicenseClientAsync(null);
-                return;
+                return false;
             }
 
             UpdateStatus("VALID — session not connected", Color.DarkOrange,
@@ -494,6 +517,7 @@ namespace Licenses_Test_Winforms_App
                     ? "License is valid, but the session could not be connected."
                     : $"License is valid, but the session could not be connected: {result.Message}");
             pnlStatus.BackColor = Color.FromArgb(255, 247, 237);
+            return true;
         }
 
         private async void btnClear_Click(object? sender, EventArgs e)
