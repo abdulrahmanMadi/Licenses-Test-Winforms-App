@@ -13,7 +13,7 @@
     <!-- The published SDK from nuget.org, as vendors install it. To try SDK changes that are not published yet, use
          <ProjectReference Include="..\..\LicenPro-2024\SDK\LicenPro.SDK.lib\LicenPro.SDK.csproj" />
          instead of this line, and put the line back before committing. -->
-    <PackageReference Include="LicenPro.SDK" Version="1.12.1" />
+    <PackageReference Include="LicenPro.SDK" Version="1.13.0" />
   </ItemGroup>
 
 
