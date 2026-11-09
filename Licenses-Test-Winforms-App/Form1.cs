@@ -792,11 +792,16 @@ namespace Licenses_Test_Winforms_App
             }
 
             lblDetailNameValue.Text = string.IsNullOrWhiteSpace(info.Name) ? "(not set)" : info.Name;
-            lblDetailIssuedValue.Text = info.IssuedOn.ToString("yyyy-MM-dd HH:mm") + " UTC";
+            // SDK 1.13 reads the server's UTC times ("...Z") as local clock values; show the UTC the label promises.
+            lblDetailIssuedValue.Text = AsUtc(info.IssuedOn).ToString("yyyy-MM-dd HH:mm") + " UTC";
             lblDetailIssuerValue.Text = string.IsNullOrWhiteSpace(info.Issuer) ? "—" : info.Issuer;
             lblDetailModeValue.Text = info.ValidationMode;
             lblDetailTypeValue.Text = info.LicenseType;
         }
+
+        // Local-kind values convert back to UTC; unspecified ones are the server's UTC already.
+        private static DateTime AsUtc(DateTime value) =>
+            value.Kind == DateTimeKind.Local ? value.ToUniversalTime() : value;
 
         private void ClearLicenseDetailsPanel()
         {
