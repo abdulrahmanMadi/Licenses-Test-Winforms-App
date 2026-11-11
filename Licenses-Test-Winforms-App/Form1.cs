@@ -129,6 +129,9 @@ namespace Licenses_Test_Winforms_App
                 "LicenseExpired" => "This license has expired. Contact your vendor to renew it.",
                 "LicenseRevoked" or "Revoked" => "This license has been revoked. Contact your vendor.",
                 "BindingPending" => "This device is waiting for your vendor's approval.",
+                "BindingPendingOtherDevice" => "Another device is waiting for your vendor's approval for this license.",
+                "BindingRejected" =>
+                    "Your vendor rejected this device for this license. Contact your vendor if you need to use it here.",
                 _ => message.Trim()
             };
         }
@@ -141,6 +144,12 @@ namespace Licenses_Test_Winforms_App
             if (m.Contains("deactivated", StringComparison.OrdinalIgnoreCase)) return "DEACTIVATED";
             if (m.Contains("revoked", StringComparison.OrdinalIgnoreCase)) return "REVOKED";
             if (m.Contains("expired", StringComparison.OrdinalIgnoreCase)) return "EXPIRED";
+            if (m.Contains("different device", StringComparison.OrdinalIgnoreCase) ||
+                m.Contains("HardwareMismatch", StringComparison.OrdinalIgnoreCase)) return "WRONG DEVICE";
+            if (m.Contains("rejected", StringComparison.OrdinalIgnoreCase)) return "REJECTED";
+            if (m.Contains("pending approval", StringComparison.OrdinalIgnoreCase) ||
+                m.Contains("waiting for your vendor", StringComparison.OrdinalIgnoreCase) ||
+                m.Contains("BindingPending", StringComparison.OrdinalIgnoreCase)) return "PENDING APPROVAL";
             if (m.Contains("ended from the LicenPro dashboard", StringComparison.OrdinalIgnoreCase)) return "SESSION ENDED";
             return "INVALID";
         }
@@ -158,7 +167,8 @@ namespace Licenses_Test_Winforms_App
             {
                 "not active", "revoked", "blocked", "deactivated", "expired", "maximum number of activations",
                 "MaxActivationsReached", "seats for this license are in use", "MaxConcurrentSessionsReached",
-                "different device", "different user", "No license was found", "pending approval", "BindingPending"
+                "different device", "different user", "No license was found", "pending approval", "BindingPending",
+                "rejected", "BindingRejected", "waiting for your vendor"
             };
             return refusals.Any(r => message.Contains(r, StringComparison.OrdinalIgnoreCase));
         }
