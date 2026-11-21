@@ -32,6 +32,7 @@ namespace Licenses_Test_Winforms_App
             txtAppVersion.TextChanged += (_, _) => RefreshEffectiveUpdateVersionDisplay();
             SdkUpdateManager.UpdateAvailable += OnSdkProductUpdateAvailable;
             SessionManager.HeartbeatSent += OnHeartbeatSent;
+            AddMoveLicenseButton();
             SetupFormTooltips();
             ShowBuiltInPublicKey();
             RefreshEffectiveUpdateVersionDisplay();
@@ -45,6 +46,43 @@ namespace Licenses_Test_Winforms_App
                     await _licenseClient.DisposeAsync();
                 }
             };
+        }
+
+        /// <summary>
+        /// "Move license to another device" (Node-Locked, SDK 1.16): the old device gets a code, the new device enters it,
+        /// and the product owner approves the move on the license page (owner decision 2026-11-21).
+        /// </summary>
+        private void AddMoveLicenseButton()
+        {
+            var button = new Button
+            {
+                Name = "btnMoveLicense",
+                Text = "⇄  Move license to another device...",
+                Location = new Point(20, 543),
+                Size = new Size(460, 28),
+                FlatStyle = FlatStyle.Flat,
+                BackColor = Color.White,
+                ForeColor = Color.FromArgb(59, 130, 246),
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                Cursor = Cursors.Hand
+            };
+            button.FlatAppearance.BorderColor = Color.FromArgb(191, 219, 254);
+            button.Click += async (_, _) =>
+            {
+                var key = _licenseClient?.License?.LicenseKey;
+                using var dialog = new MoveLicenseForm(key);
+                dialog.ShowDialog(this);
+                if (dialog.MovedLicenseKey == null)
+                    return;
+
+                // The license now belongs to this device: validate it here (the license file is needed the first time).
+                txtLicenseKey.Text = dialog.MovedLicenseKey;
+                if (!string.IsNullOrWhiteSpace(txtLicenseFile.Text) || LicenseCache.Exists())
+                    await ValidateFromInputsAsync();
+                else
+                    UpdateStatus("License moved", Color.Green, "Choose the license file (.bin) and press Validate to use the license on this device.");
+            };
+            Controls.Add(button);
         }
 
         /// <summary>Set while the server cannot be reached or the session is being restored; cleared by the next good heartbeat.</summary>
